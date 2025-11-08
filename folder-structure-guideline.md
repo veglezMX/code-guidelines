@@ -63,13 +63,29 @@ my-repo/
       │  ├─ public/
       │  ├─ package.json
       │  ├─ tsconfig.json
+      │  ├─ Dockerfile           # Production container image
+      │  ├─ Dockerfile.dev       # Optional: development container
+      │  ├─ .dockerignore
+      │  ├─ nginx.conf           # If using nginx for serving
+      │  ├─ docker-compose.yml   # Local dev services (db, cache, etc.)
       │  ├─ .env.example
-      │  └─ justfile             # OPTIONAL
+      │  ├─ deploy/              # Deployment configurations (optional)
+      │  │  ├─ k8s/
+      │  │  │  ├─ deployment.yaml
+      │  │  │  ├─ service.yaml
+      │  │  │  └─ ingress.yaml
+      │  │  └─ compose/
+      │  │     └─ docker-compose.prod.yml
+      │  └─ justfile             # OPTIONAL: includes docker build/run commands
       └─ flutter/
          ├─ lib/
          ├─ test/
+         ├─ Dockerfile           # For web builds or testing
+         ├─ .dockerignore
          ├─ pubspec.yaml
          ├─ .env.example
+         ├─ deploy/              # Optional
+         │  └─ k8s/
          └─ justfile             # OPTIONAL
 ```
 
@@ -100,6 +116,8 @@ my-repo/
   * `backend/*`: each microservice self-contained (source, tests, Dockerfile, optional `deploy/`).
   * `client/web`, `client/flutter`: front-end apps.
   * Each service may optionally include a **local `justfile`** to customize its verbs (autonomy) — root will detect and delegate.
+  * **Containerization**: Both backend and frontend include Dockerfiles for production deployment. Frontend apps use multi-stage builds (build assets → serve with nginx/similar).
+  * **Docker Compose**: Used for local development dependencies (databases, Redis, etc.), not for running the app itself (Nix dev shell handles that).
 
 ---
 
@@ -379,6 +397,255 @@ dev:
   ```
 
   You now get `just dev billing` immediately. If later the team adds `code/backend/billing-service/justfile`, root will **auto-delegate**.
+
+---
+
+## E) Containerization Pattern for Frontend
+
+Frontend applications follow a **dual-mode approach**:
+
+1. **Development**: Use Nix dev shell (fast, hot-reload, native tooling)
+2. **Production**: Use Docker containers (portable, optimized, deployment-ready)
+
+### Example: React/Vite Frontend with Containerization
+
+**Directory structure:**
+```
+code/client/web/
+├── src/
+├── public/
+├── package.json
+├── vite.config.ts
+├── Dockerfile              # Multi-stage production build
+├── Dockerfile.dev          # Optional: dev container (rare, prefer Nix)
+├── .dockerignore
+├── nginx.conf              # Production server config
+├── docker-compose.yml      # Dev dependencies (NOT the app)
+├── .env.example
+├── deploy/
+│   ├── k8s/               # Kubernetes manifests
+│   └── compose/           # Compose for prod-like local testing
+└── justfile               # Docker build/run commands
+```
+
+**`Dockerfile` (multi-stage production build):**
+```dockerfile
+# Stage 1: Build
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --only=production=false
+
+# Copy source and build
+COPY . .
+RUN npm run build
+
+# Stage 2: Serve with nginx
+FROM nginx:alpine
+
+# Copy built assets
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+**`nginx.conf`:**
+```nginx
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # SPA fallback
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Caching for static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+}
+```
+
+**`docker-compose.yml` (dev dependencies ONLY):**
+```yaml
+# This runs dependencies, NOT the frontend app
+# The app runs via: nix develop --command just dev
+version: '3.8'
+
+services:
+  # Backend API (if needed for frontend dev)
+  api:
+    image: your-backend-api:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/devdb
+    depends_on:
+      - db
+
+  # Database
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=devdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+```
+
+**`.dockerignore`:**
+```
+node_modules
+dist
+build
+.git
+.env
+.env.local
+*.log
+coverage
+.vscode
+.idea
+README.md
+```
+
+**`justfile` for containerized frontend:**
+```just
+# Frontend with containerization support
+export PORT := env_var_or_default('PORT', '3000')
+export API_URL := env_var_or_default('API_URL', 'http://localhost:8080')
+
+# Development (Nix shell, NOT container)
+dev: services-up
+    @echo "🚀 Starting dev server on port {{PORT}}..."
+    npm run dev
+
+# Start dependency services (API, DB, Redis)
+services-up:
+    docker-compose up -d
+    @echo "✅ Services started"
+    @echo "   API: http://localhost:8080"
+    @echo "   DB: localhost:5432"
+    @echo "   Redis: localhost:6379"
+
+# Stop services
+services-down:
+    docker-compose down
+
+# View service logs
+logs:
+    docker-compose logs -f
+
+# Build production container image
+docker-build:
+    docker build -t my-frontend:latest .
+    @echo "✅ Built: my-frontend:latest"
+
+# Test production container locally
+docker-run:
+    docker run -p 8000:80 --rm my-frontend:latest
+    @echo "🌐 Running at http://localhost:8000"
+
+# Build and run production container
+docker-test: docker-build docker-run
+
+# Build for production (static files)
+build:
+    npm run build
+    @echo "✅ Built to dist/"
+
+# Run tests
+test: services-up
+    npm test
+
+# Run e2e tests against containerized app
+test-e2e-docker: docker-build
+    docker-compose -f deploy/compose/docker-compose.prod.yml up -d
+    npm run test:e2e
+    docker-compose -f deploy/compose/docker-compose.prod.yml down
+
+# Lint
+lint:
+    npm run lint
+
+# CI checks
+ci: lint test build docker-build
+    @echo "✅ CI passed"
+
+# Setup
+setup: _check-nix _install-deps
+    @echo "✅ Setup complete"
+
+_check-nix:
+    @command -v nix >/dev/null || (echo "❌ Nix required"; exit 1)
+
+_install-deps:
+    npm install
+
+# Clean
+clean: services-down
+    rm -rf dist node_modules .vite
+```
+
+**Key points:**
+
+1. **Development workflow**: Run `just dev` → uses Nix shell + native Node.js (fast, hot-reload)
+2. **Docker Compose**: Only for dependencies (backend API, database, Redis), NOT the frontend app
+3. **Production**: Multi-stage Docker build → optimized nginx image
+4. **Testing**: Can test prod container locally with `just docker-test`
+5. **CI/CD**: Builds both ways (Nix for testing, Docker for deployment)
+
+**Flake entry for web frontend:**
+```nix
+devShells.client.web = mkShellFor "client/web" [ 
+  pkgs.nodejs_20 
+  pkgs.nodePackages.npm
+  pkgs.docker-compose  # For managing dev services
+];
+```
+
+**Root justfile registration:**
+```just
+SVC_LIST := "
+ms1      backend/microservice1          devShells.backend.microservice1          MS1
+web      client/web                     devShells.client.web                     WEB
+"
+
+WEB_DEV   := "npm run dev"
+WEB_TEST  := "npm test"
+WEB_BUILD := "npm run build"
+WEB_LINT  := "npm run lint"
+```
+
+This pattern keeps development fast (Nix + native tools) while ensuring production artifacts are containerized and portable.
 
 ---
 
