@@ -1,0 +1,339 @@
+# CI Pipeline Matrix Template
+#
+# This template provides a complete CI/CD pipeline configuration
+# for testing at all layers with parallelization and artifact retention
+
+name: Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *'  # Nightly at 2 AM
+
+# ============================================================================
+# JOBS
+# ============================================================================
+
+jobs:
+  # Fast feedback: Lint and type check
+  lint-and-typecheck:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Lint
+        run: pnpm lint
+      
+      - name: Type check
+        run: pnpm tsc --noEmit
+
+  # Unit tests with parallelization
+  unit-tests:
+    name: Unit Tests (Shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run unit tests
+        run: pnpm vitest run --shard=${{ matrix.shard }}/4 --coverage
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: unit-shard-${{ matrix.shard }}
+          name: unit-shard-${{ matrix.shard }}
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: unit-test-results-${{ matrix.shard }}
+          path: |
+            junit.xml
+            coverage/
+          retention-days: 30
+
+  # Integration tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run integration tests
+        run: pnpm test:integration --coverage
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: integration
+          name: integration-coverage
+
+  # E2E smoke tests (PR only)
+  e2e-smoke:
+    name: E2E Smoke Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install Playwright
+        run: pnpm exec playwright install --with-deps
+      
+      - name: Build app
+        run: pnpm build
+      
+      - name: Run smoke tests
+        run: pnpm exec playwright test --grep "@smoke"
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: e2e-smoke-failures
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  # E2E regression tests (main branch and nightly)
+  e2e-regression:
+    name: E2E Regression (Shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install Playwright
+        run: pnpm exec playwright install --with-deps
+      
+      - name: Build app
+        run: pnpm build
+      
+      - name: Run regression tests
+        run: pnpm exec playwright test --grep "@regression" --shard=${{ matrix.shard }}/4
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: e2e-regression-failures-${{ matrix.shard }}
+          path: |
+            test-results/
+            playwright-report/
+            reports/traces/
+          retention-days: 14
+
+  # BDD tests
+  bdd-tests:
+    name: BDD Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run BDD smoke tests
+        run: pnpm cucumber-js --tags "@smoke"
+      
+      - name: Upload Cucumber report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: cucumber-report
+          path: reports/cucumber-report.html
+          retention-days: 30
+
+  # Coverage check for changed files
+  coverage-check:
+    name: Coverage Check (Changed Files)
+    needs: [unit-tests, integration-tests]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Test changed files
+        run: pnpm test:changed --coverage
+      
+      - name: Check threshold
+        run: |
+          COVERAGE=$(jq '.total.lines.pct' coverage/coverage-summary.json)
+          echo "Coverage: $COVERAGE%"
+          
+          if (( $(echo "$COVERAGE < 85" | bc -l) )); then
+            echo "❌ Coverage below 85%"
+            exit 1
+          fi
+          
+          echo "✅ Coverage meets threshold"
+      
+      - name: Comment PR
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const coverage = JSON.parse(fs.readFileSync('./coverage/coverage-summary.json'));
+            
+            const comment = `## Coverage Report\n\n` +
+              `Lines: ${coverage.total.lines.pct}%\n` +
+              `Functions: ${coverage.total.functions.pct}%\n` +
+              `Branches: ${coverage.total.branches.pct}%\n\n` +
+              `${coverage.total.lines.pct >= 85 ? '✅ Meets threshold' : '❌ Below threshold (85%)'}`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Visual regression tests
+  visual-tests:
+    name: Visual Regression
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install Playwright
+        run: pnpm exec playwright install --with-deps
+      
+      - name: Run visual tests
+        run: pnpm exec playwright test --grep "@visual"
+      
+      - name: Upload visual diffs
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: visual-diffs
+          path: |
+            tests/**/*-diff.png
+            tests/**/*-actual.png
+          retention-days: 7
+
+  # Accessibility tests
+  a11y-tests:
+    name: Accessibility Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install Playwright
+        run: pnpm exec playwright install --with-deps
+      
+      - name: Run a11y tests
+        run: pnpm exec playwright test --grep "@a11y"
+
+  # Performance tests (nightly)
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build app
+        run: pnpm build
+      
+      - name: Run Lighthouse CI
+        run: pnpm lhci
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
