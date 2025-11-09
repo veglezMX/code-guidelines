@@ -8,7 +8,9 @@ This guide documents the definitive approach to creating portable, reproducible 
 
 1. **You cannot simplify what you don't understand** - This guide provides the full picture so architects can make informed trade-offs based on their project's actual needs, not assumptions.
 
-2. **Complex projects deserve complex solutions** - The overhead of proper reproducibility infrastructure is justified by the complete elimination of "works on my machine" problems, onboarding friction, and environment drift.
+2. **Complex projects deserve complex solutions** - A fragile, underspecified environment is the root of "works on my machine" problems. Intentional architectural complexity is the direct antidote, building systems that are robust everywhere.
+
+3. **Reproducibility is binary** - You either have it or you don't; there's no middle ground
 
 
 ### Core Principle: Only Nix Should Be Required
