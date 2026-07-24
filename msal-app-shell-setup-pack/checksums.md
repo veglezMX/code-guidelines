@@ -1,0 +1,23 @@
+# SHA-256 Checksums
+
+Generated for all pack files except this checksum manifest.
+
+```text
+03ab887e427c17fb690c8d9e4303af20942176cb4e05e220f83bc656f51abb43  00-version-baseline.md
+7fcba1cd617b4e697853d2eda1f4f42ecd4c581f48f0b1a43ede647aa045a8e3  01-target-architecture.md
+2ab7ff5755b8bab851976a4ec54bce7bf9db31fa73f6b90250993e988d0996fa  02-entra-registration.md
+71d7c2643a2562d8e87cacd9fd99e0ba41f5794b583d6cb58edf26a7b66bf94a  03-workspace-and-folder-structure.md
+4cd8a06f97b04d63bb29ea111c470e1b0e27179038cd8ba19c8c2b78450c836b  04-install-and-runtime-config.md
+fa6c5235ae36a0eb7f6b5c87e81646850387664bfcfba7e05f03bcb3714a4cdb  05-msal-v5-redirect-bridge.md
+2d1210a15de455ce68baba7306baa9e5052ae4c32fb6d89e74f1b8c578770b5b  06-shell-bootstrap-and-providers.md
+9f9bca54574e6c4883b90c8949a685f6f3d1c34ce2ed524617697362781c96db  07-cross-tab-authentication-and-logout.md
+f62b152a414f45261d89c07327a8c2ad13b0b4237b3a234d4e3a1b91e2db0fca  08-authorized-http-and-api-scopes.md
+715ff19b1f9a3c00d2e18411bebee688611c82a9c6bb2978e6d4643f2ef1b5cd  09-route-protection-and-child-lifecycle.md
+3f18e557272da32f0196e6c94a61fcdec5cc53dac15acd9ea0cf00945075c8f3  10-portal-and-child-authorization.md
+f5f601a09f5aa1386709d525ff58cb6913daec1e04efdb69047e7104c4e96415  11-nginx-full-configuration.md
+f267763ae69bdf589ec73993fd55999f4759ab0830d939361beab968d01de438  12-testing-and-security-checklist.md
+d1a5c6a04132ec8cf0a7ccd80b128d53eae4a6e73bd1abe193e50a9f515034e9  13-troubleshooting.md
+e6e1cc6b6ca8f04a4bc328b123f1a4de6be62451db4f0a83aae0901f02fa50a1  README.md
+b00d18586cbccdc2afe3a938cae2b718dd340e9955b6a58515190e7e25ddf313  glossary.md
+707236cd262fc6f579470d633688d705ad454ee3badcfc0f9faab125ebd3d46f  references.md
+```
