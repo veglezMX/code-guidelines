@@ -8,10 +8,11 @@ Workspace created. Both source architectures read in full and compared
 (`../analysis/02-approach-comparison.md`). Microsoft guidance researched and recorded
 (`../analysis/01-microsoft-guidance-review.md`).
 
-**The fork is settled.** `topology` (1) and `bff-alternative` (2) are both `settled`.
-The architecture is **three independently deployed SPAs on one origin, composed by
-navigation, with MSAL in the browser** — see `../curated/topology.md`. Everything else is
-still `not-started`.
+**The fork is settled**, and so is the bridge. `topology` (1), `bff-alternative` (2) and
+`redirect-bridge` (5) are `settled`. The architecture is **three independently deployed
+SPAs on one origin, composed by navigation, with MSAL in the browser** — see
+`../curated/topology.md` and `../curated/redirect-bridge.md`. The other seventeen topics
+are `not-started`.
 
 Settled invariants that every later topic inherits:
 
@@ -26,36 +27,43 @@ Settled invariants that every later topic inherits:
   blast radius are accepted consequences.
 - Ported from the app-shell pack: portal launch entitlement (`canLaunch` + guard), and a
   payload-free `BroadcastChannel` logout signal.
+- One portal-owned `/auth-redirect.html` bridge, shared by all three apps as `redirectUri`,
+  no COOP, `no-store`, same-origin assets only. `/auth/callback` deleted. Only the portal
+  calls `handleRedirectPromise`.
+- Return navigation belongs to the continuation record, not `navigateToLoginRequestUrl`.
+- A bridge timeout is a distinct non-interactive failure, never `interaction-required`.
+- Local development is single-origin, mirroring the production route map.
 
 ## Blocking now
 
-**`redirect-bridge` (topic 5).** Under the chosen topology the independent source's
-`/auth/callback` — a routed portal page — does not work against `@azure/msal-browser@5`.
-A dedicated bridge document is required: no router, no `MsalProvider`, its own COOP
-handling, calling `broadcastResponseToMainFrame()`. Every flow including
-`acquireTokenSilent` routes through it, so no token topic can be finished before it.
+Nothing is blocking.
 
 ## Next up
 
-1. `redirect-bridge` — blocking, and the highest-severity concrete defect found.
-2. `msal-instance-and-bootstrap` — now unblocked; also fixes the invalid
-   `navigateToLoginRequestUrl` placement (open item 2) and defines the
-   `/portal-runtime.json` loader and validator.
-3. `account-resolution` — the independent approach's model is clearly better; likely a
+1. `msal-instance-and-bootstrap` (4) — owns every loose end left by topic 5: the single
+   `handleRedirectPromise` call site, the `/portal-runtime.json` loader and validator, the
+   explicit bridge timeout values, and the `navigateToLoginRequestUrl` placement fix
+   (open item 2).
+2. `account-resolution` (6) — the independent approach's model is clearly better; likely a
    quick settle.
-4. `entra-registration` — one shared SPA registration plus per-backend API registrations,
-   already implied by `0002`.
-5. `token-acquisition` — depends on 1 and 3.
+3. `entra-registration` (3) — one shared SPA registration, one bridge redirect URI per
+   environment, per-backend API registrations.
+4. `token-acquisition` (7) — must add the `bridge-unavailable` outcome required by `0009`,
+   and fix the no-op 401 retry (comparison §7.5).
+5. `interaction-recovery` (9) — continuation record detail, per `0008`.
 
 ## Open items carried in
 
 Established during analysis or during the topology session, not yet decided.
 
-1. **MSAL v5 redirect bridge missing from the independent approach.** Now definitely in
-   scope — see "Blocking now". → topic `redirect-bridge`, comparison §7.1–§7.2, §7.4.
-2. **`navigateToLoginRequestUrl: false` in `auth` config is invalid in v5.** Moved to
-   `handleRedirectPromise` options. The independent approach's §7 config block is
-   v4-shaped. → topic `msal-instance-and-bootstrap`, comparison §7.3.
+1. **Unverified: the full-page-redirect hand-off.** Once the bridge has broadcast, whether
+   it navigates onward itself or MSAL completes the return on the next portal load is not
+   stated in either source. Read the redirect-bridge how-to before writing bootstrap code.
+   → topic `msal-instance-and-bootstrap`.
+2. **`navigateToLoginRequestUrl: false` in `auth` config is invalid in v5.** Mechanism
+   decided in `0008` — the continuation record owns return navigation, and the option, if
+   used, is passed to `handleRedirectPromise`. The config-shape fix and its test are still
+   to be written. → topic `msal-instance-and-bootstrap`, comparison §7.3.
 3. **Pack leaks raw `AccountInfo` to children.** Pack-internal contradiction; still worth
    carrying because the redacted `AuthenticatedUser` shape is the better model.
    → topic `account-resolution`.
@@ -79,10 +87,21 @@ Established during analysis or during the topology session, not yet decided.
     neither source's backend scope. Needs an owner. → topic `authorization-layers`.
 11. **Shared chrome undecided.** Full-page navigation means no persistent nav bar; whether
     chrome is packaged, duplicated, or omitted is open. → topic `workspace-and-packages`.
+12. **Unverified: msal-browser version skew between the bridge and an application.** They
+    communicate over a `BroadcastChannel`; interoperability across versions is undocumented
+    in both sources. Mitigated by one repo-wide pin. → topic `version-baseline`.
+13. **Bridge timeout values not chosen.** Defaults unverified; the right value depends on
+    authority latency. → topic `msal-instance-and-bootstrap`.
+14. **401 retry is a no-op as written.** The independent approach's §16.5 "retry once"
+    repeats `acquireTokenSilent`, which returns the same cached token without
+    `forceRefresh: true` or a claims challenge. → topic `authorized-http`, comparison §7.5.
+15. **Single-origin dev mechanism unchosen.** `0010` fixes the constraint, not the tool.
+    → topic `workspace-and-packages`.
 
-Resolved since the last update: the topology fork itself, and the BFF question (items
-formerly listed as the blocking decision). Cross-tab logout (formerly item 8) has a chosen
-mechanism in `0006`; only its detail remains, under topic 10.
+Resolved since the last update: the topology fork, the BFF question, and the missing
+redirect bridge — formerly the blocking item, now settled by `0007`–`0010`. Cross-tab
+logout (formerly item 8) has a chosen mechanism in `0006`; only its detail remains, under
+topic 10.
 
 ## Decisions so far
 
@@ -94,3 +113,7 @@ mechanism in `0006`; only its detail remains, under topic 10.
 | 0004 | topology | One `/portal-runtime.json` keyed by app; each app reads only its key |
 | 0005 | authorization-layers | Port the portal launch-entitlement check |
 | 0006 | cross-tab-and-logout | Port the payload-free `BroadcastChannel` logout signal |
+| 0007 | redirect-bridge | One portal-owned bridge document shared by all three apps; `/auth/callback` deleted |
+| 0008 | redirect-bridge | Continuation record owns return navigation; `navigateToLoginRequestUrl` is a `handleRedirectPromise` option |
+| 0009 | redirect-bridge | Bridge timeout is a distinct non-interactive failure, never `interaction-required` |
+| 0010 | redirect-bridge | Local development is served from a single origin |
