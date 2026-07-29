@@ -342,10 +342,9 @@ are absent, presents the unauthenticated/recovery state.
 
 ## Open
 
-1. The full multiple-account selection and selected-account persistence rules belong to
-   `account-resolution` (6).
-2. The event-to-logout-channel behavior and `BroadcastChannel` fallback belong to
-   `cross-tab-and-logout` (10).
+1. Account resolution and portal-owned multiple-account selection are settled in `0016`.
+2. Event-to-channel behavior and the no-application-storage fallback are settled in
+   `0023`.
 3. `10_000` / `60_000` are the documented v5 defaults chosen as the initial operational
    baseline. Production authority-latency telemetry may justify a later decision with
    different values.

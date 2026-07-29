@@ -222,10 +222,7 @@ topic 16's to choose; the single-origin constraint is fixed here.
 2. **Portal deploy coupling accepted.** Under `0007` a bridge change requires a portal
    deploy, which children depend on for authentication. Revisit only if release cadences
    diverge enough to hurt.
-3. **`bridge-unavailable` naming and placement in the result union** — the union lives in
-   the shared auth package. → topic `token-acquisition` (7).
-4. **Popup logout is not part of the chosen logout flow.** If a later decision introduces
-   `logoutPopup`, its `postLogoutRedirectUri` must itself run the redirect bridge (or reuse
-   `/auth-redirect.html`). The planned `/signed-out` page is valid for `logoutRedirect`
-   only and must remain MSAL-free. → topics `cross-tab-and-logout` (10) and
-   `entra-registration` (3).
+3. `0018` places `bridge-unavailable` in the token outcome union and preserves its
+   non-interactive handling.
+4. `0023` selects redirect logout. Popup logout remains outside the baseline;
+   `/signed-out` stays MSAL-free.

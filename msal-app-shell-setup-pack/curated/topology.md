@@ -154,6 +154,4 @@ nothing about a logout until the user navigates. Detail belongs to topic
    by all three applications. Kept as the user specified. If a fourth consumer or a second
    environment makes the name misleading, rename it there, not here.
 5. **24-hour SPA refresh-token lifetime stands.** Accepted as a consequence of `0003`.
-   The mitigation is the continuation-record flow the independent source already designs —
-   the user is returned to the exact route after re-interaction. → topic
-   `token-lifetime-24h` (15).
+   `0022` settles on-demand renewal and exact-route portal continuation as the mitigation.
