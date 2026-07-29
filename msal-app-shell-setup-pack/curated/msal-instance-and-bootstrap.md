@@ -348,7 +348,7 @@ are absent, presents the unauthenticated/recovery state.
 3. `10_000` / `60_000` are the documented v5 defaults chosen as the initial operational
    baseline. Production authority-latency telemetry may justify a later decision with
    different values.
-4. Runtime-config generation and the single-origin local proxy mechanism belong to
-   `workspace-and-packages` (16).
-5. Startup, StrictMode, duplicate-instance, redirect-result, missing-`sessionStorage`,
-   and config-shape tests belong to `testing` (19).
+4. `0027` assigns runtime config to deployment and selects the localhost:4173 nginx
+   gateway.
+5. `0029` makes startup, StrictMode, duplicate-instance, redirect-result,
+   missing-`sessionStorage`, and config-shape cases release gates.

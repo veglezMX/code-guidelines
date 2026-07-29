@@ -28,10 +28,10 @@ Legend for the Sources column:
 | 13 | `cache-and-storage` | settled | 0017 · inherits 0003, 0004, 0006, 0013 | P `00` "localStorage security note" · I §7 · A `01`, A `02` §9 · MSAL caching · OWASP storage |
 | 14 | `cae-and-claims-challenge` | settled | 0020 · inherits 0008, 0015, 0018, 0019 | A `01` · Microsoft CAE and claims-challenge guidance |
 | 15 | `token-lifetime-24h` | settled | 0022 · inherits 0003, 0008, 0018, 0021 | A `01` · A `02` §9 · Microsoft token-lifetime guidance |
-| 16 | `workspace-and-packages` | not-started | inherits 0002, 0004, 0007, 0010 | P `03` · I §4, §5, §6 |
+| 16 | `workspace-and-packages` | settled | 0027 · inherits 0002, 0004, 0007, 0010, 0013, 0024 | P `03` · I §4, §5, §6 · pnpm/Vite guidance |
 | 17 | `nginx-and-headers` | settled | 0026 · inherits 0002, 0004, 0007, 0013, 0017, 0024 | P `11` · I §2.1 (thin) · A `02` §6.5 · nginx/CSP/Kubernetes guidance |
-| 18 | `observability` | not-started | 0009 (needs an event) | P `12` · I §20 · A `02` §5.4 |
-| 19 | `testing` | not-started | inherits 0010 | P `12` · I §18 |
+| 18 | `observability` | settled | 0028 · inherits 0009, 0017–0020, 0023, 0026 | P `12` · I §20 · A `02` §5.4 · MSAL/W3C/OpenTelemetry guidance |
+| 19 | `testing` | settled | 0029 · inherits 0010, 0013, 0014 and all behavior decisions | P `12` · I §18 · MSAL/Playwright guidance |
 | 20 | `version-baseline` | settled | 0013, 0014 · inherits 0007 | P `00` · I §21 · A `01` addendum, A `02` §10 · `research.md` versions, §6 · npm registry · Oxlint docs |
 
 ## Ordering constraint
@@ -47,11 +47,11 @@ guidance. Topics 7, 8 and 14 are also settled with resource-pinned acquisition, 
 bounded authentication replay, and a navigation-safe claims relay. Nothing is blocking.
 Topics 9, 10 and 15 are settled with explicit portal continuation, on-demand renewal, and
 single-initiator logout. Topics 11, 12 and 17 are settled with path-preserving ingress,
-backend-authoritative access and service-owned headers. Continue with 16
-(`workspace-and-packages`), 18 (`observability`), and 19 (`testing`).
+backend-authoritative access and service-owned headers. Topics 16, 18 and 19 complete the
+curation with independently compiled packages, redacted operations evidence, and layered
+release proof. All twenty topics are settled.
 
 ## Coverage note
 
-Topics 14 and 15 are absent from both sources. They are on this list because the review
-found the gap, not because a source addresses them. Expect to author them from primary
-Microsoft documentation.
+Topics 14 and 15 were absent from both sources. They were added from primary Microsoft
+CAE, claims-challenge and token-lifetime documentation.

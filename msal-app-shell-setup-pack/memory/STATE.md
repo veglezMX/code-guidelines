@@ -9,15 +9,17 @@ Workspace created. Both source architectures were read and compared
 `research.md` were checked against current primary sources; corrections are appended to
 `../analysis/01-microsoft-guidance-review.md`.
 
-Seventeen topics are `settled`: `topology` (1), `bff-alternative` (2),
+All twenty topics are `settled`: `topology` (1), `bff-alternative` (2),
 `entra-registration` (3), `msal-instance-and-bootstrap` (4), `redirect-bridge` (5),
 `account-resolution` (6), `token-acquisition` (7), `authorized-http` (8),
 `interaction-recovery` (9), `cross-tab-and-logout` (10), `routing-and-deep-links` (11),
 `authorization-layers` (12), `cache-and-storage` (13),
 `cae-and-claims-challenge` (14), `token-lifetime-24h` (15),
-`nginx-and-headers` (17), and `version-baseline` (20).
+`workspace-and-packages` (16), `nginx-and-headers` (17), `observability` (18),
+`testing` (19), and `version-baseline` (20).
 The architecture is **three independently deployed SPAs on one origin, composed by
-navigation, with MSAL in the browser**. Three topics are `not-started`.
+navigation, with MSAL in the browser**. No curated architecture topic remains
+`not-started`.
 
 Settled invariants that every later topic inherits:
 
@@ -76,6 +78,12 @@ Settled invariants that every later topic inherits:
   permission and domain policy; direct child routes remain safe.
 - Ingress owns TLS/HSTS. Web-service nginx owns CSP/cache/fallbacks. Normal pages deny
   framing and use COOP; the bridge is no-store, same-origin-frameable and has no COOP.
+- One pnpm workspace compiles shared packages into three independent SPA images.
+  `app-chrome` is duplicated per document; local nginx exposes only localhost:4173.
+- Auth observability is a redacted stable outcome schema plus W3C tracing to owned APIs;
+  it never serializes MSAL payloads, identity, full URLs or bearer material.
+- Release proof combines static/unit/contracts, built nginx/routes, Chromium/Firefox/
+  WebKit, protected real-Entra smoke, and scheduled CAE/24-hour suites.
 
 ## Blocking now
 
@@ -83,32 +91,34 @@ Nothing is blocking.
 
 ## Next up
 
-1. `workspace-and-packages` (16) — package boundaries and the single-origin dev gateway.
-2. `observability` (18) — privacy-safe evidence.
-3. `testing` (19) — full release gates and the unsupported-by-guidance multi-document
-   browser proof.
+1. Scaffold the implementation workspace, apps, shared packages and local gateway from
+   the settled topic files.
+2. Provision non-production Entra client/API registrations, APIs and claims relay.
+3. Implement Kubernetes/nginx/runtime-config delivery and retained-asset rollout.
+4. Implement the full test matrix and obtain real three-document/CAE/24-hour evidence.
+5. Supply the product, identity, security, operations and deployment inputs listed below.
 
-## Open items carried in
+## Remaining implementation and deployment work
 
-Established during analysis or during the topology session, not yet decided.
+The architecture choices are settled; these items need real systems or owner input.
 
-1. **Pack renders `error.message`.** Under v5 that string is a docs URL. Same problem in
-   its `loggerCallback`, since v5 console messages are hashed. The independent approach
-   already handles this correctly. → topic `observability`.
-2. **Shared chrome undecided.** Full-page navigation means no persistent nav bar; whether
-   chrome is packaged, duplicated, or omitted is open. → topic `workspace-and-packages`.
-3. **Single-origin dev mechanism unchosen.** `0010` fixes the constraint, not the tool.
-    → topic `workspace-and-packages`.
-4. **Cross-instance renewal races are not validated.** MSAL deduplicates equivalent
-    silent requests within one PCA, not across the three live PCAs. Gate child startup
-    behind account resolution and test simultaneous renewals. → topics `token-acquisition`
-    and `testing`.
-5. **Version set is not runtime-proven.** Registry availability, peer ranges, engines,
-    and nginx directive support are verified; installation/build/browser validation and
-    exact container digests remain. → topics `workspace-and-packages`, `testing`.
-6. **No official v5 multi-SPA how-to.** Shared-origin/shared-client cache behavior is
-    assembled from Microsoft SSO/caching guidance and package source. Validate the exact
-    three-document deployment in the browser matrix. → topic `testing`.
+1. **No application/deployment repository exists here.** Package installation, builds,
+   containers, APIs, ingress and runtime behavior have not been executed.
+2. **Identity inputs:** tenant and environment client IDs, API IDs/scopes, consent,
+   assignment, KMSI, Conditional Access and sign-in-frequency policies.
+3. **Backend capabilities:** portal launch endpoints, child capabilities/policies,
+   exact token validation, idempotency contracts, and the five-minute claims relay with
+   service authentication/rate limits.
+4. **Delivery inputs:** production host/TLS/ingress class, runtime JSON generation,
+   ConfigMap ownership, release-qualified asset retention, registries and exact
+   builder/nginx/ingress/browser image digests.
+5. **Product inputs:** portal/account/recovery/logout/error UX, route manifests, domain
+   authorization rules, long-running draft preservation and accessibility review.
+6. **Operations/privacy inputs:** exporter/vendor, CSP reporting, region/retention/access,
+   sampling, SLO/error budgets, alert ownership and approved event dictionary.
+7. **Evidence:** one physical MSAL resolution; enforcing CSP; all browser/deep-link/
+   multi-tab/concurrent-renewal tests; wrong-audience denial; protected real-Entra
+   three-document smoke; CAE challenge; and an actual approximately-24-hour soak.
 
 Resolved since the last update: the full-page bridge hand-off, the v5
 `navigateToLoginRequestUrl` placement, bridge timeout defaults, package availability/peer
@@ -146,3 +156,6 @@ single exact MSAL resolution.
 | 0024 | routing-and-deep-links | Preserve route prefixes and keep fallbacks application-owned |
 | 0025 | authorization-layers | Keep portal launch authorization as UX and APIs as authority |
 | 0026 | nginx-and-headers | Keep SPA headers/fallbacks in services with a bridge exception |
+| 0027 | workspace-and-packages | Compile shared workspace packages and use a single-origin dev gateway |
+| 0028 | observability | Observe auth through redacted stable outcomes |
+| 0029 | testing | Require layered browser and real-Entra release proof |

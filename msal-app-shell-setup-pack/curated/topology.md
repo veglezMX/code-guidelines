@@ -147,9 +147,8 @@ nothing about a logout until the user navigates. Detail belongs to topic
    tokens for every API. Identical under the app-shell topology; only the BFF option
    changes it. `0017` accepts the storage consequence and `0026` makes enforcing CSP and
    same-origin script discipline release requirements.
-3. **Portal chrome is duplicated or absent.** Full-page navigation means no persistent
-   shell nav bar. Whether shared chrome is a component in a shared package, duplicated per
-   app, or simply omitted is undecided. → topic `workspace-and-packages` (16).
+3. **Portal chrome is duplicated per document.** `0027` selects one shared
+   `app-chrome` package compiled into each SPA; it does not create a persistent shell.
 4. **`/portal-runtime.json` naming.** The endpoint is named for the portal but is consumed
    by all three applications. Kept as the user specified. If a fourth consumer or a second
    environment makes the name misleading, rename it there, not here.
