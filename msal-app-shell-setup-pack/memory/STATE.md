@@ -1,18 +1,18 @@
 # State
 
-Last updated: 2026-07-28.
+Last updated: 2026-07-29.
 
 ## Where things stand
 
-Workspace created. Both source architectures read in full and compared
-(`../analysis/02-approach-comparison.md`). Microsoft guidance researched and recorded
-(`../analysis/01-microsoft-guidance-review.md`).
+Workspace created. Both source architectures were read and compared
+(`../analysis/02-approach-comparison.md`). Microsoft guidance and the additional
+`research.md` were checked against current primary sources; corrections are appended to
+`../analysis/01-microsoft-guidance-review.md`.
 
-**The fork is settled**, and so is the bridge. `topology` (1), `bff-alternative` (2) and
-`redirect-bridge` (5) are `settled`. The architecture is **three independently deployed
-SPAs on one origin, composed by navigation, with MSAL in the browser** — see
-`../curated/topology.md` and `../curated/redirect-bridge.md`. The other seventeen topics
-are `not-started`.
+Five topics are `settled`: `topology` (1), `bff-alternative` (2),
+`msal-instance-and-bootstrap` (4), `redirect-bridge` (5), and `version-baseline` (20).
+The architecture is **three independently deployed SPAs on one origin, composed by
+navigation, with MSAL in the browser**. Fifteen topics are `not-started`.
 
 Settled invariants that every later topic inherits:
 
@@ -29,9 +29,18 @@ Settled invariants that every later topic inherits:
   payload-free `BroadcastChannel` logout signal.
 - One portal-owned `/auth-redirect.html` bridge, shared by all three apps as `redirectUri`,
   no COOP, `no-store`, same-origin assets only. `/auth/callback` deleted. Only the portal
-  calls `handleRedirectPromise`.
+  explicitly processes `handleRedirectPromise` before render; `MsalProvider`'s internal
+  idempotent call is accepted in every app.
+- `createStandardPublicClientApplication` initializes but does not consume a redirect.
+  Portal bootstrap calls
+  `handleRedirectPromise({ navigateToLoginRequestUrl: false })`, then resolves the active
+  account, then renders one `MsalProvider`. No mirrored auth store.
 - Return navigation belongs to the continuation record, not `navigateToLoginRequestUrl`.
 - A bridge timeout is a distinct non-interactive failure, never `interaction-required`.
+- Bridge timeouts begin explicitly at iframe `10_000` ms and popup `60_000` ms.
+- Exact baseline: `@azure/msal-browser@5.17.3`,
+  `@azure/msal-react@5.5.4`, React/DOM `19.2.8`, React Router `8.3.0`, Vite `8.1.5`,
+  TypeScript `7.0.2`, pnpm `11.18.0`, Node `>=22.22.0`; one physical MSAL copy.
 - Local development is single-origin, mirroring the production route map.
 
 ## Blocking now
@@ -40,68 +49,69 @@ Nothing is blocking.
 
 ## Next up
 
-1. `msal-instance-and-bootstrap` (4) — owns every loose end left by topic 5: the single
-   `handleRedirectPromise` call site, the `/portal-runtime.json` loader and validator, the
-   explicit bridge timeout values, and the `navigateToLoginRequestUrl` placement fix
-   (open item 2).
-2. `account-resolution` (6) — the independent approach's model is clearly better; likely a
+1. `account-resolution` (6) — the independent approach's model is clearly better; likely a
    quick settle.
-3. `entra-registration` (3) — one shared SPA registration, one bridge redirect URI per
+2. `entra-registration` (3) — one shared SPA registration, one bridge redirect URI per
    environment, per-backend API registrations.
-4. `token-acquisition` (7) — must add the `bridge-unavailable` outcome required by `0009`,
+3. `token-acquisition` (7) — must add the `bridge-unavailable` outcome required by `0009`,
    and fix the no-op 401 retry (comparison §7.5).
-5. `interaction-recovery` (9) — continuation record detail, per `0008`.
+4. `interaction-recovery` (9) — continuation record detail, per `0008`.
+5. `cache-and-storage` (13) — document the `localStorage` / KMSI trade-off and decide
+   `cacheRetentionDays`.
 
 ## Open items carried in
 
 Established during analysis or during the topology session, not yet decided.
 
-1. **Unverified: the full-page-redirect hand-off.** Once the bridge has broadcast, whether
-   it navigates onward itself or MSAL completes the return on the next portal load is not
-   stated in either source. Read the redirect-bridge how-to before writing bootstrap code.
-   → topic `msal-instance-and-bootstrap`.
-2. **`navigateToLoginRequestUrl: false` in `auth` config is invalid in v5.** Mechanism
-   decided in `0008` — the continuation record owns return navigation, and the option, if
-   used, is passed to `handleRedirectPromise`. The config-shape fix and its test are still
-   to be written. → topic `msal-instance-and-bootstrap`, comparison §7.3.
-3. **Pack leaks raw `AccountInfo` to children.** Pack-internal contradiction; still worth
+1. **Pack leaks raw `AccountInfo` to children.** Pack-internal contradiction; still worth
    carrying because the redacted `AuthenticatedUser` shape is the better model.
    → topic `account-resolution`.
-4. **Pack renders `error.message`.** Under v5 that string is a docs URL. Same problem in
+2. **Pack renders `error.message`.** Under v5 that string is a docs URL. Same problem in
    its `loggerCallback`, since v5 console messages are hashed. The independent approach
    already handles this correctly. → topic `observability`.
-5. **Neither source implements CAE.** No `clientCapabilities: ["cp1"]`, no
+3. **Neither source implements CAE.** No `clientCapabilities: ["cp1"]`, no
    `WWW-Authenticate` parsing on 401. → topic `cae-and-claims-challenge`.
-6. **24-hour SPA refresh-token wall.** Now an accepted consequence of `0003`; the
+4. **24-hour SPA refresh-token wall.** Now an accepted consequence of `0003`; the
    mitigation (continuation record, return to exact route) still has to be specified.
    → topic `token-lifetime-24h`.
-7. **Soft token boundary.** `0004` stops child0 from *receiving* child1's catalog but
+5. **Soft token boundary.** `0004` stops child0 from *receiving* child1's catalog but
    nothing stops child0's bundle from requesting a `child1-api` token. Enforcement is
    backend audience validation plus per-app adapters plus tests. → topic `authorized-http`.
-8. **`localStorage` encryption caveat unmentioned in both.** MSAL skips the AES-GCM
+6. **`localStorage` encryption caveat unmentioned in both.** MSAL skips the AES-GCM
    encryption when the user selects "Keep me signed in". → topic `cache-and-storage`.
-9. **Version pins unverified.** React `19.2.8`, TypeScript `7.0.2`, Vite `8.1.5`, React
-   Router `8.3.0`, `@azure/msal-react@5.5.3`, and the nginx `add_header_inherit merge` /
-   1.29.3 requirement were never checked against upstream. → topic `version-baseline`.
-10. **Portal backend dependency.** `0005` requires a `canLaunch` endpoint that exists in
-    neither source's backend scope. Needs an owner. → topic `authorization-layers`.
-11. **Shared chrome undecided.** Full-page navigation means no persistent nav bar; whether
-    chrome is packaged, duplicated, or omitted is open. → topic `workspace-and-packages`.
-12. **Unverified: msal-browser version skew between the bridge and an application.** They
-    communicate over a `BroadcastChannel`; interoperability across versions is undocumented
-    in both sources. Mitigated by one repo-wide pin. → topic `version-baseline`.
-13. **Bridge timeout values not chosen.** Defaults unverified; the right value depends on
-    authority latency. → topic `msal-instance-and-bootstrap`.
-14. **401 retry is a no-op as written.** The independent approach's §16.5 "retry once"
-    repeats `acquireTokenSilent`, which returns the same cached token without
-    `forceRefresh: true` or a claims challenge. → topic `authorized-http`, comparison §7.5.
-15. **Single-origin dev mechanism unchosen.** `0010` fixes the constraint, not the tool.
+7. **Portal backend dependency.** `0005` requires a `canLaunch` endpoint that exists in
+   neither source's backend scope. Needs an owner. → topic `authorization-layers`.
+8. **Shared chrome undecided.** Full-page navigation means no persistent nav bar; whether
+   chrome is packaged, duplicated, or omitted is open. → topic `workspace-and-packages`.
+9. **401 retry is a no-op as written.** The independent approach's §16.5 "retry once"
+   repeats `acquireTokenSilent`, which returns the same cached token without
+   `forceRefresh: true` or a claims challenge. → topic `authorized-http`, comparison §7.5.
+10. **Single-origin dev mechanism unchosen.** `0010` fixes the constraint, not the tool.
     → topic `workspace-and-packages`.
+11. **Cross-instance renewal races are not validated.** MSAL deduplicates equivalent
+    silent requests within one PCA, not across the three live PCAs. Gate child startup
+    behind account resolution and test simultaneous renewals. → topics `token-acquisition`
+    and `testing`.
+12. **`timed_out` recovery conflict.** `research.md` recommends sending a timeout to the
+    portal as if interaction were required, citing issue #8434. Accepted decision `0009`
+    says the opposite because a broken bridge would loop. Do not supersede `0009` without
+    an explicit user decision and a test that distinguishes an operational bridge failure
+    from an interaction timeout. → topics `token-acquisition`, `interaction-recovery`.
+13. **Version set is not runtime-proven.** Registry availability, peer ranges, engines,
+    and nginx directive support are verified; installation/build/browser validation and
+    exact container digests remain. → topics `workspace-and-packages`, `testing`.
+14. **Signed-out URI detail.** `/signed-out` must be registered and remain MSAL-free for
+    `logoutRedirect`. If `logoutPopup` is introduced, its post-logout URI must run the
+    bridge instead. → topics `entra-registration`, `cross-tab-and-logout`.
+15. **No official v5 multi-SPA how-to.** Shared-origin/shared-client cache behavior is
+    assembled from Microsoft SSO/caching guidance and package source. Validate the exact
+    three-document deployment in the browser matrix. → topic `testing`.
 
-Resolved since the last update: the topology fork, the BFF question, and the missing
-redirect bridge — formerly the blocking item, now settled by `0007`–`0010`. Cross-tab
-logout (formerly item 8) has a chosen mechanism in `0006`; only its detail remains, under
-topic 10.
+Resolved since the last update: the full-page bridge hand-off, the v5
+`navigateToLoginRequestUrl` placement, bridge timeout defaults, package availability/peer
+ranges, and the nginx `add_header_inherit` version floor. Cross-version bridge
+interoperability remains undocumented but is removed from the deployed design by `0013`'s
+single exact MSAL resolution.
 
 ## Decisions so far
 
@@ -117,3 +127,6 @@ topic 10.
 | 0008 | redirect-bridge | Continuation record owns return navigation; `navigateToLoginRequestUrl` is a `handleRedirectPromise` option |
 | 0009 | redirect-bridge | Bridge timeout is a distinct non-interactive failure, never `interaction-required` |
 | 0010 | redirect-bridge | Local development is served from a single origin |
+| 0011 | msal-instance-and-bootstrap | Bootstrap once before render; MSAL context remains the state source |
+| 0012 | msal-instance-and-bootstrap | Start with explicit v5 default bridge timeouts |
+| 0013 | version-baseline | Pin one exact, compatible frontend and MSAL baseline |

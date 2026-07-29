@@ -13,11 +13,11 @@ Legend for the Sources column:
 
 | # | Topic | Status | Decisions | Sources to read |
 |---|---|---|---|---|
-| 1 | `topology` | settled | 0002, 0003, 0004, 0005, 0006 | P `01`, P `03`, P `11` · I §2, §23 · A `02` §1–§6, §11 |
+| 1 | `topology` | settled | 0002, 0003, 0004, 0005, 0006 · refined by 0007, 0011 | P `01`, P `03`, P `11` · I §2, §23 · A `02` §1–§6, §11 |
 | 2 | `bff-alternative` | settled | 0003 | A `01` §3 Option C · I §23 |
 | 3 | `entra-registration` | not-started | inherits 0002, 0007, 0010 | P `02` · I §3, §6 |
-| 4 | `msal-instance-and-bootstrap` | not-started | inherits 0002, 0004, 0006, 0007, 0008, 0009 | P `04`, P `06` · I §7, §8, §15 · A `02` §7.3 |
-| 5 | `redirect-bridge` | settled | 0007, 0008, 0009, 0010 | P `00` "MSAL v5 changes", P `05`, P `11` · I §12, §15 · A `02` §7.1–§7.2, §7.4 |
+| 4 | `msal-instance-and-bootstrap` | settled | 0011, 0012 · inherits 0002, 0004, 0006, 0007, 0008, 0009 | P `04`, P `06` · I §7, §8, §15 · A `01` addendum, A `02` §7.3 · `research.md` §1–§5 |
+| 5 | `redirect-bridge` | settled | 0007, 0008, 0009, 0010, 0011, 0012 | P `00` "MSAL v5 changes", P `05`, P `11` · I §12, §15 · A `01` addendum, A `02` §7.1–§7.2, §7.4 · `research.md` §1 |
 | 6 | `account-resolution` | not-started | — | P `01`, P `06` · I §9 · A `02` §5.3, §10 |
 | 7 | `token-acquisition` | not-started | 0009 (must add outcome) | P `08` · I §10, §11 · A `02` §7.5 |
 | 8 | `authorized-http` | not-started | — | P `08` · I §16.4–§16.5 · A `02` §6.3 |
@@ -32,7 +32,7 @@ Legend for the Sources column:
 | 17 | `nginx-and-headers` | not-started | inherits 0002, 0004, 0007 | P `11` · I §2.1 (thin) · A `02` §6.5 |
 | 18 | `observability` | not-started | 0009 (needs an event) | P `12` · I §20 · A `02` §5.4 |
 | 19 | `testing` | not-started | inherits 0010 | P `12` · I §18 |
-| 20 | `version-baseline` | not-started | 0007 (single msal pin) | P `00` · I §21 · A `02` §10 |
+| 20 | `version-baseline` | settled | 0013 · inherits 0007 | P `00` · I §21 · A `01` addendum, A `02` §10 · `research.md` versions, §6 · npm registry |
 
 ## Ordering constraint
 
@@ -41,10 +41,11 @@ Legend for the Sources column:
 10, 11, 16 and 17 inherit from that choice; read `curated/topology.md` before curating any
 of them.
 
-Topic 5 (`redirect-bridge`) is also settled (2026-07-28, `0007`–`0010`). Nothing is
-blocking now. Suggested order from here: 4 (`msal-instance-and-bootstrap`) — it owns the
-loose ends of 5 — then 6 (`account-resolution`), 3 (`entra-registration`), 7
-(`token-acquisition`).
+Topic 5 (`redirect-bridge`) is settled (2026-07-28, refined 2026-07-29), and topics 4
+(`msal-instance-and-bootstrap`) and 20 (`version-baseline`) are now settled from the
+verified `research.md` slice. Nothing is blocking now. Suggested order from here:
+6 (`account-resolution`), 3 (`entra-registration`), 7 (`token-acquisition`), then
+9 (`interaction-recovery`).
 
 ## Coverage note
 

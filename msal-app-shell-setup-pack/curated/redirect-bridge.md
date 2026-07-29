@@ -1,9 +1,10 @@
 # Redirect Bridge
 
 Status: settled
-Decisions: 0007, 0008, 0009, 0010 · inherits 0002, 0004
+Decisions: 0007, 0008, 0009, 0010, 0011, 0012 · inherits 0002, 0004
 Sources: pack `00` "Important MSAL v5 changes", pack `05`, pack `11` · independent §12,
 §15.1–§15.4 · analysis `01` §1, §2.5, rec 10 · analysis `02` §7.1–§7.4 ·
+`research.md` §1 ·
 [Set up the redirect bridge page in MSAL Browser](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/redirect-bridge)
 · [Migrate from MSAL Browser v4 to v5](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/v4-migration)
 
@@ -26,8 +27,11 @@ Sources: pack `00` "Important MSAL v5 changes", pack `05`, pack `11` · independ
    of `/portal-runtime.json` (`0004`) and is identical everywhere.
 6. **`/auth/callback` is deleted.** It has no role under v5. The portal processes the
    response at bootstrap. `/auth/continue` is unchanged and keeps its role.
-7. **Only the portal calls `handleRedirectPromise`**, once, during bootstrap, before
-   render. Children never call it.
+7. **Only the portal explicitly processes `handleRedirectPromise`**, once, during
+   bootstrap, before render. Child application code never calls it. `MsalProvider` does
+   invoke it internally in every application; the call is idempotent and returns `null`
+   in children because they never initiate redirect flows. This refinement is recorded in
+   `0011`.
 8. **Return navigation is owned by the continuation record**, not by MSAL. Where
    `navigateToLoginRequestUrl` is needed it is passed to `handleRedirectPromise`, not set
    in `auth` config — v5 moved it, and the v4 placement is silently ignored.
@@ -55,8 +59,16 @@ async function runRedirectBridge(): Promise<void> {
 }
 
 void runRedirectBridge().catch((error: unknown) => {
-  // No PII, no token material. The bridge has no logger and no telemetry transport.
-  console.error("MSAL redirect bridge failed", error);
+  // Never log the raw error: this page receives the authorization response.
+  const errorCode =
+    typeof error === "object" &&
+    error !== null &&
+    "errorCode" in error &&
+    typeof error.errorCode === "string"
+      ? error.errorCode
+      : "unknown";
+
+  console.error("MSAL redirect bridge failed", { errorCode });
 });
 ```
 
@@ -136,10 +148,28 @@ Timeouts are set deliberately rather than left at default:
 
 ```ts
 system: {
-  iframeBridgeTimeout: /* ms */,   // was iframeHashTimeout in v4
-  popupBridgeTimeout:  /* ms */,   // was windowHashTimeout in v4
+  iframeBridgeTimeout: 10_000, // was iframeHashTimeout in v4
+  popupBridgeTimeout: 60_000,  // was windowHashTimeout in v4
 }
 ```
+
+Those are the documented v5 defaults, made explicit by `0012`. They are identical in all
+three application configs and may change only from measured authority-latency and timeout
+telemetry.
+
+### Full-page redirect hand-off
+
+For `loginRedirect` / `acquireTokenRedirect`, the bridge does not broadcast to an opener.
+It reads MSAL's temporary interaction record, stores the raw authentication response in
+MSAL's `sessionStorage` temporary cache, and replaces the bridge URL with the page that
+initiated the redirect. On that next portal load, the explicit
+`handleRedirectPromise({ navigateToLoginRequestUrl: false })` call consumes the cached
+response and returns `AuthenticationResult`.
+
+If `sessionStorage` access or the temporary-cache write fails, the bridge still navigates
+back but the portal can receive `null`. Portal bootstrap must branch on both the redirect
+result and the active account; it must never treat arrival from the bridge as proof of
+success. Full bootstrap is specified in `msal-instance-and-bootstrap.md`.
 
 ### Failure model
 
@@ -186,22 +216,16 @@ topic 16's to choose; the single-origin constraint is fixed here.
 
 ## Open
 
-1. **Unverified: who navigates after a full-page redirect.** For a redirect flow the
-   initiating document is gone by the time the bridge runs, so whether the bridge itself
-   navigates onward or MSAL completes the return on the next portal load is not stated in
-   either source, and `analysis/01` records the how-to page only at the level of "call
-   `broadcastResponseToMainFrame()`". This does not change any decision here — the bridge
-   still does nothing but broadcast, and the continuation record still owns the final
-   destination — but the exact hand-off must be read from the redirect-bridge how-to before
-   the bootstrap code is written. → topic `msal-instance-and-bootstrap` (4).
-2. **Unverified: msal-browser version skew between the bridge and an application.** The
-   bridge and the app communicate over a `BroadcastChannel`; neither source says whether
-   mismatched versions interoperate. Mitigated by pinning one `@azure/msal-browser` version
-   across the repo, which is required anyway. → topic `version-baseline` (20).
-3. **Timeout values not chosen.** The defaults are unverified and the right value depends
-   on the tenant's authority latency. → topic `msal-instance-and-bootstrap` (4).
-4. **Portal deploy coupling accepted.** Under `0007` a bridge change requires a portal
+1. **Version-skew interoperability is undocumented.** `0013` removes the practical
+   exposure by pinning one physical `@azure/msal-browser@5.17.3` across the bridge and all
+   applications. Reopen only if independent release pipelines make that impossible.
+2. **Portal deploy coupling accepted.** Under `0007` a bridge change requires a portal
    deploy, which children depend on for authentication. Revisit only if release cadences
    diverge enough to hurt.
-5. **`bridge-unavailable` naming and placement in the result union** — the union lives in
+3. **`bridge-unavailable` naming and placement in the result union** — the union lives in
    the shared auth package. → topic `token-acquisition` (7).
+4. **Popup logout is not part of the chosen logout flow.** If a later decision introduces
+   `logoutPopup`, its `postLogoutRedirectUri` must itself run the redirect bridge (or reuse
+   `/auth-redirect.html`). The planned `/signed-out` page is valid for `logoutRedirect`
+   only and must remain MSAL-free. → topics `cross-tab-and-logout` (10) and
+   `entra-registration` (3).

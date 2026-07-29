@@ -353,3 +353,93 @@ identity. If the APIs are sensitive B2E APIs, move to the BFF/token-handler mode
 - [Nested App Authentication now GA across Microsoft 365](https://devblogs.microsoft.com/microsoft365dev/nested-app-authentication-now-generally-available-across-microsoft-365/)
 - [MSAL.js issue #974 — multiple MSAL instances](https://github.com/AzureAD/microsoft-authentication-library-for-js/issues/974)
 - [MSAL.js issue #4263 — MsalProvider with single-spa](https://github.com/AzureAD/microsoft-authentication-library-for-js/issues/4263)
+
+---
+
+## 7. 2026-07-29 research addendum and corrections
+
+This section is appended rather than rewriting the July 28 review. It records facts
+verified while curating `research.md`.
+
+### 7.1 The standard factory initializes but does not process the redirect
+
+Section 2.4 above says the pack uses a factory "which handles the redirect internally."
+That is incorrect. In the published `@azure/msal-browser@5.17.3` implementation,
+`createStandardPublicClientApplication(configuration)` constructs a
+`PublicClientApplication`, awaits `pca.initialize()`, and returns it. It does not call
+`handleRedirectPromise`.
+
+The portal must call
+`handleRedirectPromise({ navigateToLoginRequestUrl: false })` explicitly before render.
+On a non-redirect load it resolves `null`; MSAL caches/guards repeat calls.
+
+Evidence:
+
+- [v4→v5 migration guide](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/v4-migration)
+  describes the factory as instantiating and initializing the standard PCA, and documents
+  `handleRedirectPromise` separately.
+- Published `@azure/msal-browser@5.17.3`,
+  `dist/app/PublicClientApplication.mjs`, inspected from the npm tarball on 2026-07-29.
+
+### 7.2 Full-page bridge hand-off is now verified
+
+For redirect interaction state, the published `5.17.3` bridge:
+
+1. reads the client ID and initiating URL from MSAL's `sessionStorage` temporary entries;
+2. writes the raw response under MSAL's `urlHash` temporary key;
+3. replaces the bridge URL with the initiating URL;
+4. expects `handleRedirectPromise` on the next load to consume the cached payload.
+
+If `sessionStorage` read/write fails, it still navigates but explicitly documents that
+`handleRedirectPromise` will return `null`.
+
+This package behavior is more precise than the Learn migration page's older wording that
+the response is appended to the destination URL. Curated content follows the exact pinned
+package implementation and records the documentation conflict.
+
+Evidence: published `@azure/msal-browser@5.17.3`,
+`lib/redirect-bridge/msal-redirect-bridge.cjs`, inspected from the npm tarball on
+2026-07-29.
+
+### 7.3 Bridge timeout defaults are verified
+
+The published `5.17.3` configuration implementation defines:
+
+```ts
+const DEFAULT_POPUP_TIMEOUT_MS = 60_000;
+const DEFAULT_IFRAME_TIMEOUT_MS = 10_000;
+```
+
+The curated baseline makes those values explicit. This closes the earlier "default values
+unverified" item without claiming that the defaults are permanently optimal for a specific
+tenant.
+
+### 7.4 `MsalProvider` always makes an internal redirect call
+
+The current official `MsalProvider` source registers an event callback, invokes
+`instance.initialize()`, then invokes `instance.handleRedirectPromise()` in an effect.
+Therefore "children never call `handleRedirectPromise`" can only be enforced for
+application-owned code while retaining the official React provider. Child provider calls
+are harmless non-redirect loads and resolve `null`; children still own no interactive
+flow.
+
+Evidence:
+
+- [MSAL React `MsalProvider` source](https://github.com/AzureAD/microsoft-authentication-library-for-js/blob/dev/lib/msal-react/src/MsalProvider.tsx)
+- [MSAL React getting started](https://learn.microsoft.com/en-us/entra/msal/javascript/react/getting-started)
+- Published `@azure/msal-react@5.5.4`, `src/MsalProvider.tsx`, inspected from the npm
+  tarball on 2026-07-29.
+
+### 7.5 Version verification supersedes the earlier open item
+
+Direct npm registry queries on 2026-07-29 verified the frontend versions recorded in
+`curated/version-baseline.md`. Notably, `research.md`'s
+`@azure/msal-react@5.5.3` was already superseded by `5.5.4`, whose peer dependency requires
+`@azure/msal-browser ^5.17.3`.
+
+Official nginx documentation confirms that `add_header_inherit` first appeared in
+`1.29.3` and that `merge` appends inherited header values. The current published choices
+are stable `1.30.4` and mainline `1.31.3`.
+
+This verifies availability and declared compatibility, not end-to-end application
+behavior. Installation/build/browser proof remains a testing task.

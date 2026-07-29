@@ -24,6 +24,7 @@ Microsoft Entra / MSAL are being merged, topic by topic, into one curated soluti
 
 ## Current status
 
-Workspace established, both sources analysed, zero architecture topics curated.
-The blocking decision is `topology` — the two sources are mutually exclusive there and
-that choice constrains most other topics.
+Workspace established and both sources analysed. Five architecture topics are settled:
+`topology`, `bff-alternative`, `redirect-bridge`, `msal-instance-and-bootstrap`, and
+`version-baseline`. Fifteen topics remain. Nothing is blocking; the next topic is
+`account-resolution`.

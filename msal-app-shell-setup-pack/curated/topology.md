@@ -1,7 +1,7 @@
 # Topology
 
 Status: settled
-Decisions: 0002, 0003, 0004, 0005, 0006
+Decisions: 0002, 0003, 0004, 0005, 0006 · refined by 0007, 0011
 Sources: pack `01`, `03`, `11` · independent §2, §23 · analysis `02` §1–§6, §11 ·
 analysis `01` §3
 
@@ -26,7 +26,8 @@ origin**, composed by navigation, not at runtime.
    application that needs a token acquires it from its own MSAL instance.
 6. Only the portal performs interactive authentication. Children are silent-only: no
    `loginRedirect`, `loginPopup`, `acquireTokenRedirect`, `acquireTokenPopup`, and no
-   `handleRedirectPromise`.
+   application-owned `handleRedirectPromise`. `MsalProvider`'s internal idempotent call is
+   accepted and returns `null`; see `0011`.
 7. Runtime configuration is fetched from a single origin-relative endpoint,
    `/portal-runtime.json`, whose top level is keyed by application id. **Each application
    reads only its own key.** No build-time environment baking; the shared auth package
@@ -44,13 +45,13 @@ origin**, composed by navigation, not at runtime.
 | Route | Serves | History fallback |
 |---|---|---|
 | `/` | portal `index.html` | portal |
-| `/auth/callback` | **dedicated redirect bridge document** — no router, no `MsalProvider` | none; exact path |
+| `/auth-redirect.html` | **dedicated redirect bridge document** — no router, no `MsalProvider` | none; exact path |
 | `/auth/continue` | portal `index.html` | portal |
 | `/child0/*` | child0 `index.html` | child0 |
 | `/child1/*` | child1 `index.html` | child1 |
 | `/portal-runtime.json` | runtime config, `Cache-Control: no-store` | none |
 
-`/auth/callback` is deliberately **not** a portal SPA route. Under
+`/auth-redirect.html` is deliberately **not** a portal SPA route. Under
 `@azure/msal-browser@5` the redirect response is delivered to a bare bridge page that
 calls `broadcastResponseToMainFrame()`; it must not boot a router or an `MsalProvider`,
 and it needs its own COOP handling. The independent source routes `/auth/callback`
@@ -156,6 +157,3 @@ nothing about a logout until the user navigates. Detail belongs to topic
    The mitigation is the continuation-record flow the independent source already designs —
    the user is returned to the exact route after re-interaction. → topic
    `token-lifetime-24h` (15).
-6. **Redirect bridge is unwritten.** Invariant and document boundary are fixed here; the
-   bridge implementation, COOP header, and timeout handling are not. Blocking for any
-   authentication at all. → topic `redirect-bridge` (5).
