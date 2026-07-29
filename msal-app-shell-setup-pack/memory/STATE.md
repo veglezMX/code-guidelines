@@ -9,11 +9,13 @@ Workspace created. Both source architectures were read and compared
 `research.md` were checked against current primary sources; corrections are appended to
 `../analysis/01-microsoft-guidance-review.md`.
 
-Eight topics are `settled`: `topology` (1), `bff-alternative` (2),
+Eleven topics are `settled`: `topology` (1), `bff-alternative` (2),
 `entra-registration` (3), `msal-instance-and-bootstrap` (4), `redirect-bridge` (5),
-`account-resolution` (6), `cache-and-storage` (13), and `version-baseline` (20).
+`account-resolution` (6), `token-acquisition` (7), `authorized-http` (8),
+`cache-and-storage` (13), `cae-and-claims-challenge` (14), and
+`version-baseline` (20).
 The architecture is **three independently deployed SPAs on one origin, composed by
-navigation, with MSAL in the browser**. Twelve topics are `not-started`.
+navigation, with MSAL in the browser**. Nine topics are `not-started`.
 
 Settled invariants that every later topic inherits:
 
@@ -53,6 +55,13 @@ Settled invariants that every later topic inherits:
   multiple → portal-owned selection. Raw `AccountInfo` stays inside the auth adapter.
 - `localStorage` belongs to MSAL only, with `cacheRetentionDays: 5`. Application storage
   is limited to the ten-minute continuation and an opaque tab ID in `sessionStorage`.
+- Token acquisition is silent, account-explicit and resource-pinned. Tokens stay inside
+  the HTTP adapter; equivalent in-document requests share a promise.
+- A 401 permits one meaningful replay: `forceRefresh: true`, plus validated in-memory
+  claims when present. No authentication retry for 403, 429, or 5xx.
+- `clientCapabilities: ["CP1"]` is enabled only with the server-side claims relay. Raw
+  challenges remain in memory/server storage; only a five-minute single-use opaque ID
+  crosses portal navigation.
 
 ## Blocking now
 
@@ -60,13 +69,12 @@ Nothing is blocking.
 
 ## Next up
 
-1. `token-acquisition` (7) — must add the `bridge-unavailable` outcome required by `0009`,
-   and fix the no-op 401 retry (comparison §7.5).
-2. `authorized-http` (8) — resource-pinned adapters, meaningful 401 retry and challenge
-   handling.
-3. `cae-and-claims-challenge` (14) — CP1 and a claims-safe recovery path.
-4. `interaction-recovery` (9) — continuation record detail, per `0008`.
-5. `token-lifetime-24h` (15) — predictable recovery at the SPA refresh-token wall.
+1. `interaction-recovery` (9) — continuation record detail, per `0008`, including the
+   opaque challenge handle.
+2. `token-lifetime-24h` (15) — predictable recovery at the SPA refresh-token wall.
+3. `cross-tab-and-logout` (10) — portal-only server sign-out and child/tab convergence.
+4. `routing-and-deep-links` (11) — exact ingress precedence and app-owned fallbacks.
+5. `authorization-layers` (12) — portal launch UX plus backend authority.
 
 ## Open items carried in
 
@@ -75,36 +83,23 @@ Established during analysis or during the topology session, not yet decided.
 1. **Pack renders `error.message`.** Under v5 that string is a docs URL. Same problem in
    its `loggerCallback`, since v5 console messages are hashed. The independent approach
    already handles this correctly. → topic `observability`.
-2. **Neither source implements CAE.** No `clientCapabilities: ["cp1"]`, no
-   `WWW-Authenticate` parsing on 401. → topic `cae-and-claims-challenge`.
-3. **24-hour SPA refresh-token wall.** Now an accepted consequence of `0003`; the
+2. **24-hour SPA refresh-token wall.** Now an accepted consequence of `0003`; the
    mitigation (continuation record, return to exact route) still has to be specified.
    → topic `token-lifetime-24h`.
-4. **Soft token boundary.** `0004` stops child0 from *receiving* child1's catalog but
-   nothing stops child0's bundle from requesting a `child1-api` token. Enforcement is
-   backend audience validation plus per-app adapters plus tests. → topic `authorized-http`.
-5. **Portal backend dependency.** `0005` requires a `canLaunch` endpoint that exists in
+3. **Portal backend dependency.** `0005` requires a `canLaunch` endpoint that exists in
    neither source's backend scope. Needs an owner. → topic `authorization-layers`.
-6. **Shared chrome undecided.** Full-page navigation means no persistent nav bar; whether
+4. **Shared chrome undecided.** Full-page navigation means no persistent nav bar; whether
    chrome is packaged, duplicated, or omitted is open. → topic `workspace-and-packages`.
-7. **401 retry is a no-op as written.** The independent approach's §16.5 "retry once"
-   repeats `acquireTokenSilent`, which returns the same cached token without
-   `forceRefresh: true` or a claims challenge. → topic `authorized-http`, comparison §7.5.
-8. **Single-origin dev mechanism unchosen.** `0010` fixes the constraint, not the tool.
+5. **Single-origin dev mechanism unchosen.** `0010` fixes the constraint, not the tool.
     → topic `workspace-and-packages`.
-9. **Cross-instance renewal races are not validated.** MSAL deduplicates equivalent
+6. **Cross-instance renewal races are not validated.** MSAL deduplicates equivalent
     silent requests within one PCA, not across the three live PCAs. Gate child startup
     behind account resolution and test simultaneous renewals. → topics `token-acquisition`
     and `testing`.
-10. **`timed_out` recovery conflict.** `research.md` recommends sending a timeout to the
-    portal as if interaction were required, citing issue #8434. Accepted decision `0009`
-    says the opposite because a broken bridge would loop. Do not supersede `0009` without
-    an explicit user decision and a test that distinguishes an operational bridge failure
-    from an interaction timeout. → topics `token-acquisition`, `interaction-recovery`.
-11. **Version set is not runtime-proven.** Registry availability, peer ranges, engines,
+7. **Version set is not runtime-proven.** Registry availability, peer ranges, engines,
     and nginx directive support are verified; installation/build/browser validation and
     exact container digests remain. → topics `workspace-and-packages`, `testing`.
-12. **No official v5 multi-SPA how-to.** Shared-origin/shared-client cache behavior is
+8. **No official v5 multi-SPA how-to.** Shared-origin/shared-client cache behavior is
     assembled from Microsoft SSO/caching guidance and package source. Validate the exact
     three-document deployment in the browser matrix. → topic `testing`.
 
@@ -135,3 +130,6 @@ single exact MSAL resolution.
 | 0015 | entra-registration | Treat all three route owners as one logical SPA client; keep API registrations separate |
 | 0016 | account-resolution | Resolve accounts deterministically; portal owns selection |
 | 0017 | cache-and-storage | Reserve localStorage for MSAL with five-day retention |
+| 0018 | token-acquisition | Keep token acquisition silent, account-explicit and resource-pinned |
+| 0019 | authorized-http | Permit one forced/claims-aware authentication replay |
+| 0020 | cae-and-claims-challenge | Relay navigation-spanning claims challenges by opaque handle |
