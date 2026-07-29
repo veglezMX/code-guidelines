@@ -101,6 +101,7 @@ Nothing is blocking.
 ## Remaining implementation and deployment work
 
 The architecture choices are settled; these items need real systems or owner input.
+The consolidated hand-off is [`../IMPLEMENTATION-GAPS.md`](../IMPLEMENTATION-GAPS.md).
 
 1. **No application/deployment repository exists here.** Package installation, builds,
    containers, APIs, ingress and runtime behavior have not been executed.
