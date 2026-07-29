@@ -1,7 +1,7 @@
 # Topology
 
 Status: settled
-Decisions: 0002, 0003, 0004, 0005, 0006 · refined by 0007, 0011
+Decisions: 0002, 0003, 0004, 0006, 0030 · refined by 0007, 0011, 0031
 Sources: pack `01`, `03`, `11` · independent §2, §23 · analysis `02` §1–§6, §11 ·
 analysis `01` §3
 
@@ -34,9 +34,10 @@ origin**, composed by navigation, not at runtime.
    must not read `import.meta.env`.
 8. MSAL stays in the browser. No BFF, no server-side token storage, no token-handler
    proxy — see decision `0003` for what that costs.
-9. The portal owns a **launch entitlement** check before navigating to a child, and a
-   payload-free **cross-tab logout signal**. Both are ported from the app-shell pack;
-   neither exists in the independent source.
+9. The portal owns **application discovery**, while each child SPA/backend pair owns its
+   authorization decision. The portal also owns a payload-free **cross-tab logout
+   signal**. Shared frontend source and identity configuration do not merge backend
+   ownership.
 
 ## Design
 
@@ -61,6 +62,13 @@ through the portal SPA, which does not work under v5. Full treatment belongs to 
 Deep links work by construction: `/child0/projects/123` is child0's own route, resolved
 by child0's router after nginx falls back to child0's `index.html`. No shell
 `NavigationPort`, no shell-owned history.
+
+For an unauthenticated direct deep link, ingress still serves the child document first.
+The child initializes only enough runtime/MSAL state to resolve that no account is cached,
+blocks protected rendering, stores the validated deep link in tab-local continuation
+storage, and replaces the document with portal `/auth/continue`. The portal performs the
+silent-first sign-in flow from `0031` and returns to the exact child route. Ingress never
+serves portal HTML at a child path.
 
 ### Runtime configuration
 
@@ -102,14 +110,15 @@ One shared SPA client registration, used by all three documents (required by inv
 4). Separate API registrations per backend: `portal-api`, `child0-api`, `child1-api`.
 Detail belongs to topic `entra-registration` (3).
 
-### Launch entitlement
+### Application discovery and child authorization
 
-Before the portal navigates the user to `/child0/`, it asks its own API whether the
-account may launch that application — the pack's shape,
-`GET /api/portal/v1/me/applications/child0` → `canLaunch`, with a denial route. A silent
-token acquisition is a readiness check, not an entitlement check, and must not be used as
-one. Backend remains the authority; the guard is UX. Detail belongs to topic
-`authorization-layers` (12).
+The portal uses `GET /api/portal/v1/me/applications` to build navigation, then performs a
+full-document navigation to the selected child. It does not own child-specific
+`applications/{id}` authorization endpoints. Child0 and child1 independently call
+`GET /api/child0/v1/me` and `GET /api/child1/v1/me` during bootstrap and render their own
+denial experience on `403`. A portal list entry and successful token acquisition are UX
+or readiness signals, not entitlement proof. Each child backend remains authoritative.
+Detail belongs to topic `authorization-layers` (12).
 
 ### Cross-tab logout
 
@@ -128,8 +137,10 @@ nothing about a logout until the user navigates. Detail belongs to topic
   browser) — rejected in `0003`.
 - **Per-app runtime config endpoints, or an edge that filters config by requester** —
   rejected in `0004`.
-- **Entitlement by 403-from-child-API alone** (the independent source's position) —
-  rejected in `0005`.
+- **Portal-owned per-child entitlement endpoints** — rejected in `0030`; they couple
+  independently deployed child authorization to the portal backend.
+- **Treat the portal application list as entitlement proof** — rejected in `0030`; each
+  child backend must make its own decision for direct and portal-originated navigation.
 - **Relying on full page loads to self-heal logout state** — rejected in `0006`.
 
 ## Open
@@ -138,7 +149,7 @@ nothing about a logout until the user navigates. Detail belongs to topic
    against the shared cache with the shared client ID, nothing in the browser stops
    child0's bundle from requesting a `child1-api` token. Config scoping (`0004`) removes
    the *convenience* — child0 never receives child1's catalog — but not the *capability*.
-   Enforcement is: backend audience validation (`0025`), resource-pinned adapters
+   Enforcement is: backend audience validation (`0030`), resource-pinned adapters
    (`0018`, `0019`), review, and tests. Structural enforcement is not achievable under
    this topology; it was available only under the app-shell pack's injected client and
    under the rejected BFF option.

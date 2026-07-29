@@ -1,6 +1,7 @@
 # 0025 — Keep portal launch authorization as UX and APIs as authority
 
 Status: accepted
+Superseded-by: 0030
 Date: 2026-07-29
 Topic: authorization-layers
 

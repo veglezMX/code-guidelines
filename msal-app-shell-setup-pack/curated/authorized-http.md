@@ -1,7 +1,7 @@
 # Authorized HTTP
 
 Status: settled
-Decisions: 0019 · inherits 0004, 0005, 0018
+Decisions: 0019 · inherits 0004, 0018, 0030
 Sources: pack `08` · independent §16.4–§16.5 · analysis `02` §6.3, §7.5 ·
 [Access tokens](https://learn.microsoft.com/en-us/entra/identity-platform/access-tokens) ·
 [Protected API scope and role verification](https://learn.microsoft.com/en-us/entra/identity-platform/scenario-protected-web-api-verification-scope-app-roles) ·

@@ -15,7 +15,8 @@ same client ID. This is also one shared authentication and browser-security boun
 the applications must not be represented as unrelated clients merely to reuse a cache.
 
 Every backend is a separate protected resource registration with its own Application ID
-URI, delegated scope, audience, policy, and owner.
+URI, delegated scope, audience, policy, and owner. Keeping the frontend applications in
+one repository does not merge those backend registrations or their deployment ownership.
 
 ## Design
 
@@ -76,9 +77,10 @@ accepted as API authorization.
 
 ### Deployment-owned values
 
-The deployment repository must supply the tenant ID, four application/client IDs,
-production host name, API owners, consent workflow, and environment-specific
-`/portal-runtime.json`. They are identifiers and configuration, not secrets.
+The deployment repository must supply one tenant ID, one shared SPA client ID, three API
+resource application IDs, the production host name, API owners, consent workflow, and
+environment-specific `/portal-runtime.json`. They are identifiers and configuration, not
+secrets.
 
 ## Why not the alternatives
 
@@ -99,6 +101,6 @@ production host name, API owners, consent workflow, and environment-specific
 1. Supply real tenant, client, scope, and host identifiers in the deployment repository.
 2. Confirm the tenant's user-assignment, consent, and Conditional Access policies with
    the identity owner.
-3. If portal and either child ever gain independent ownership, release cadence, or trust
-   boundaries, replace the shared registration with separate clients or a BFF; do not
-   preserve the client-ID shortcut.
+3. If the browser frontends ever gain independent governance or trust boundaries, replace
+   the shared SPA registration with separate clients or a BFF. Independent backend
+   ownership alone does not change the chosen browser-client topology.

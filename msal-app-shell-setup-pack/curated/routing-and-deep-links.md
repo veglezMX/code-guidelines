@@ -1,7 +1,7 @@
 # Routing and Deep Links
 
 Status: settled
-Decisions: 0024 · inherits 0002, 0007, 0010, 0021
+Decisions: 0024 · inherits 0002, 0007, 0010, 0021, 0031
 Sources: pack `09`, `11` · independent §2.1, §15.2, §16.2 · analysis `02` §5.1 ·
 [Kubernetes Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) ·
 [Vite public base path](https://vite.dev/guide/build#public-base-path) ·
@@ -58,7 +58,11 @@ must not pretend it owns another document.
 Required behavior:
 
 - refreshing `/child0/projects/123` returns child0 HTML, then child0 resolves the route;
-- refreshing `/child1/settings` never boots portal;
+- refreshing `/child1/settings` is initially served by child1, never by portal ingress;
+  an unauthenticated child may then perform the explicit portal hand-off from `0031`;
+- an unauthenticated visit to `/child0/projects/123?view=history` preserves the validated
+  child path in tab-local continuation storage, navigates to portal `/auth/continue`,
+  attempts portal-owned silent SSO, and returns to that exact route after authentication;
 - unknown child routes render that child's product 404;
 - unknown portal routes render portal 404;
 - missing hashed assets and API paths return real 404/JSON errors, never HTML;

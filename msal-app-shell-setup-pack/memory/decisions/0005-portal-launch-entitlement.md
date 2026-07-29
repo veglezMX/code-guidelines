@@ -1,6 +1,7 @@
 # 0005 — Port the portal launch-entitlement check
 
 Status: accepted
+Superseded-by: 0030
 Date: 2026-07-28
 Topic: authorization-layers (decided during `topology`)
 

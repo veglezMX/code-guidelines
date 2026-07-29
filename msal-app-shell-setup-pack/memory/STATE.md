@@ -32,8 +32,9 @@ Settled invariants that every later topic inherits:
   reads only its own key, served `no-store`, no secrets.
 - MSAL stays in the browser. No BFF. The 24-hour SPA refresh-token wall and the shared-XSS
   blast radius are accepted consequences.
-- Ported from the app-shell pack: portal launch entitlement (`canLaunch` + guard), and a
-  payload-free `BroadcastChannel` logout signal.
+- The portal owns application discovery only; child0 and child1 own authorization through
+  their independently deployed backends. A payload-free `BroadcastChannel` logout signal
+  remains ported from the app-shell pack.
 - One portal-owned `/auth-redirect.html` bridge, shared by all three apps as `redirectUri`,
   no COOP, `no-store`, same-origin assets only. `/auth/callback` deleted. Only the portal
   explicitly processes `handleRedirectPromise` before render; `MsalProvider`'s internal
@@ -43,6 +44,10 @@ Settled invariants that every later topic inherits:
   `handleRedirectPromise({ navigateToLoginRequestUrl: false })`, then resolves the active
   account, then renders one `MsalProvider`. No mirrored auth store.
 - Return navigation belongs to the continuation record, not `navigateToLoginRequestUrl`.
+- An unauthenticated direct child route writes a validated tab-local continuation and
+  hands off to `/auth/continue`. The portal attempts `ssoSilent` once, owns any
+  interactive fallback, and returns to the exact validated child route without allowing
+  an authentication loop.
 - A bridge timeout is a distinct non-interactive failure, never `interaction-required`.
 - Bridge timeouts begin explicitly at iframe `10_000` ms and popup `60_000` ms.
 - Exact baseline: `@azure/msal-browser@5.17.3`,
@@ -74,8 +79,9 @@ Settled invariants that every later topic inherits:
   `company.portal.auth.v1`; MSAL/lifecycle events are the no-channel fallback.
 - Kubernetes Ingress preserves paths and selects the owner by exact/prefix match; each
   service owns its Vite/router base, history fallback, cache policy and 404s.
-- Portal launch checks are UX. Every API validates its own exact audience, delegated
-  permission and domain policy; direct child routes remain safe.
+- Portal application discovery is UX. Child0 and child1 authorize through their own
+  `/me` endpoints, and every API validates its own exact audience, delegated permission
+  and domain policy; direct child routes remain safe.
 - Ingress owns TLS/HSTS. Web-service nginx owns CSP/cache/fallbacks. Normal pages deny
   framing and use COOP; the bridge is no-store, same-origin-frameable and has no COOP.
 - One pnpm workspace compiles shared packages into three independent SPA images.
@@ -105,11 +111,11 @@ The consolidated hand-off is [`../IMPLEMENTATION-GAPS.md`](../IMPLEMENTATION-GAP
 
 1. **No application/deployment repository exists here.** Package installation, builds,
    containers, APIs, ingress and runtime behavior have not been executed.
-2. **Identity inputs:** tenant and environment client IDs, API IDs/scopes, consent,
-   assignment, KMSI, Conditional Access and sign-in-frequency policies.
-3. **Backend capabilities:** portal launch endpoints, child capabilities/policies,
-   exact token validation, idempotency contracts, and the five-minute claims relay with
-   service authentication/rate limits.
+2. **Identity inputs:** tenant ID, one environment SPA client ID, API resource IDs/scopes,
+   consent, assignment, KMSI, Conditional Access and sign-in-frequency policies.
+3. **Backend capabilities:** one portal application-discovery endpoint, child-owned
+   profile/capability/policy endpoints, exact token validation, idempotency contracts,
+   and the five-minute claims relay with service authentication/rate limits.
 4. **Delivery inputs:** production host/TLS/ingress class, runtime JSON generation,
    ConfigMap ownership, release-qualified asset retention, registries and exact
    builder/nginx/ingress/browser image digests.
@@ -117,9 +123,10 @@ The consolidated hand-off is [`../IMPLEMENTATION-GAPS.md`](../IMPLEMENTATION-GAP
    authorization rules, long-running draft preservation and accessibility review.
 6. **Operations/privacy inputs:** exporter/vendor, CSP reporting, region/retention/access,
    sampling, SLO/error budgets, alert ownership and approved event dictionary.
-7. **Evidence:** one physical MSAL resolution; enforcing CSP; all browser/deep-link/
-   multi-tab/concurrent-renewal tests; wrong-audience denial; protected real-Entra
-   three-document smoke; CAE challenge; and an actual approximately-24-hour soak.
+7. **Evidence:** one physical MSAL resolution; enforcing CSP; direct-child silent-first
+   sign-in/exact return; all browser/deep-link/multi-tab/concurrent-renewal tests;
+   wrong-audience denial; protected real-Entra three-document smoke; CAE challenge; and
+   an actual approximately-24-hour soak.
 
 Resolved since the last update: the full-page bridge hand-off, the v5
 `navigateToLoginRequestUrl` placement, bridge timeout defaults, package availability/peer
@@ -135,7 +142,7 @@ single exact MSAL resolution.
 | 0002 | topology | Navigational composition, one document and one MSAL instance per app |
 | 0003 | bff-alternative | MSAL stays in the browser; BFF / token handler rejected |
 | 0004 | topology | One `/portal-runtime.json` keyed by app; each app reads only its key |
-| 0005 | authorization-layers | Port the portal launch-entitlement check |
+| 0005 | authorization-layers | Superseded by 0030: port the portal launch-entitlement check |
 | 0006 | cross-tab-and-logout | Port the payload-free `BroadcastChannel` logout signal |
 | 0007 | redirect-bridge | One portal-owned bridge document shared by all three apps; `/auth/callback` deleted |
 | 0008 | redirect-bridge | Continuation record owns return navigation; `navigateToLoginRequestUrl` is a `handleRedirectPromise` option |
@@ -155,8 +162,10 @@ single exact MSAL resolution.
 | 0022 | token-lifetime-24h | Renew on demand and recover explicitly at the SPA lifetime boundary |
 | 0023 | cross-tab-and-logout | Make logout portal-only and single-initiator |
 | 0024 | routing-and-deep-links | Preserve route prefixes and keep fallbacks application-owned |
-| 0025 | authorization-layers | Keep portal launch authorization as UX and APIs as authority |
+| 0025 | authorization-layers | Superseded by 0030: keep portal launch authorization as UX and APIs as authority |
 | 0026 | nginx-and-headers | Keep SPA headers/fallbacks in services with a bridge exception |
 | 0027 | workspace-and-packages | Compile shared workspace packages and use a single-origin dev gateway |
 | 0028 | observability | Observe auth through redacted stable outcomes |
 | 0029 | testing | Require layered browser and real-Entra release proof |
+| 0030 | authorization-layers | Keep child authorization endpoints with independently deployed child backends |
+| 0031 | interaction-recovery | Make direct child entry a bounded silent-first portal sign-in flow |

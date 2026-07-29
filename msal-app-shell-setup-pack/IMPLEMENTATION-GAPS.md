@@ -4,14 +4,15 @@ Date: 2026-07-29
 
 ## Outcome
 
-Architecture curation is complete: all 20 manifest topics are settled and decisions
-`0001`–`0029` are recorded. This workspace is a research/decision pack, not an application
-repository. No frontend, backend, container, Kubernetes resource, Entra registration or
-runtime test has been implemented here.
+Architecture curation is complete: all 20 manifest topics are settled and decision records
+`0001`–`0031` are present (`0005` and `0025` are superseded by `0030`). This workspace is
+a research/decision pack, not an application repository. No frontend, backend, container,
+Kubernetes resource, Entra registration or runtime test has been implemented here.
 
-The most important boundary is explicit: portal, child0 and child1 may share one client
-ID only as **one logical browser client and one shared security boundary**. The three APIs
-remain separate registrations/audiences. If the SPAs become independently governed or
+The most important boundary is explicit: portal, child0 and child1 share one tenant and
+one SPA client ID as **one logical browser client and one shared security boundary**.
+Their backends remain independently deployed protected resources with separate
+registrations/audiences. If the browser frontends become independently governed or
 unrelated products, the one-registration decision must be replaced.
 
 ## Missing before implementation can be configured
@@ -23,7 +24,7 @@ unrelated products, the one-registration decision must be replaced.
 | Identity policy | Identity + security | assignment, consent, KMSI, Conditional Access, sign-in frequency, CAE test policy |
 | Public edge | Platform | production host, DNS, TLS/certificate issuer, ingress class/version |
 | Product routes/UX | Product + frontend | route manifests; sign-in, account, continue, logout, denial and error copy/design |
-| Domain authorization | Product + API owners | launch rules, capabilities, per-operation policies and idempotency contracts |
+| Domain authorization | Product + API owners | portal discovery rules, child access/capabilities, per-operation policies and idempotency contracts |
 | Operations/privacy | Operations + privacy | telemetry vendor/region/retention/access, CSP reporting, SLOs and alert ownership |
 
 ## Missing implementation artifacts
@@ -37,13 +38,15 @@ unrelated products, the one-registration decision must be replaced.
 - Shared runtime-config, auth-core, auth-react, authorized-http, session-sync,
   observability, app-chrome and test-support packages.
 - Deterministic account selection, silent token deduplication, resource pinning, bounded
-  retry, continuation validation, CAE relay client and portal-only logout.
+  retry, continuation validation, direct-child silent-first portal sign-in, CAE relay
+  client and portal-only logout.
 - Local nginx gateway on `http://localhost:4173` with three Vite upstreams and API stubs.
 
 ### Backend/identity
 
 - Actual Entra SPA/API registrations, exact redirect URIs, scopes and admin consent.
-- Portal launch-list/per-click endpoints and child capability/domain-policy endpoints.
+- One portal application-discovery endpoint and independently owned child
+  profile/capability/domain-policy endpoints.
 - Signature/issuer/tenant/audience/time/scope/role validation in every API.
 - No-mutation-before-401 and non-idempotent idempotency behavior.
 - Five-minute single-use claims-challenge relay, workload identity/mTLS, rate limits,
@@ -78,8 +81,9 @@ These are release blockers, not optional follow-up:
    behavior is correct.
 4. Live nginx/ingress responses proving deep links, 404s, cache headers, CSP, COOP/frame
    rules and the bridge exception.
-5. Playwright Chromium, Firefox and WebKit at one origin, including multi-tab logout,
-   multiple accounts, missing storage/bridge, simultaneous renewal and retained chunks.
+5. Playwright Chromium, Firefox and WebKit at one origin, including direct-child
+   silent-first sign-in and exact return, multi-tab logout, multiple accounts, missing
+   storage/bridge, simultaneous renewal and retained chunks.
 6. Protected real-Entra smoke for one shared client ID across all three documents,
    PKCE/redirect bridge, shared cache, silent renewal, logout and exact redirect URIs.
 7. Test-tenant CAE challenge/opaque relay proof and a real approximately-24-hour

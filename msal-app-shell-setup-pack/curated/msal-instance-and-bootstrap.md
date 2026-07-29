@@ -1,7 +1,7 @@
 # MSAL Instance and Bootstrap
 
 Status: settled
-Decisions: 0011, 0012 · inherits 0002, 0004, 0006, 0007, 0008, 0009
+Decisions: 0011, 0012 · refined by 0031; inherits 0002, 0004, 0006, 0007, 0008, 0009
 Sources: pack `04`, `06` · independent §7, §8, §15 · analysis `01` §2.4 and
 2026-07-29 addendum · analysis `02` §7.3 · `research.md` §1–§5 ·
 [Migrate from MSAL Browser v4 to v5](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/v4-migration)
@@ -282,6 +282,20 @@ export async function bootstrapChild(
   // No application-owned handleRedirectPromise and no interactive API.
   const accountResolution = resolveInitialAccount(instance, null);
 
+  if (accountResolution.kind === "none") {
+    beginPortalSignInContinuation({
+      returnPath: readValidatedCurrentChildPath(applicationId),
+    });
+    return;
+  }
+
+  if (accountResolution.kind === "selection-required") {
+    beginPortalAccountSelection({
+      returnPath: readValidatedCurrentChildPath(applicationId),
+    });
+    return;
+  }
+
   createRoot(requireRootElement()).render(
     <StrictMode>
       <MsalProvider instance={instance}>
@@ -291,6 +305,13 @@ export async function bootstrapChild(
   );
 }
 ```
+
+The hand-off functions write only the validated tab-local continuation, then call
+`window.location.replace("/auth/continue")` for no account or
+`window.location.replace("/account/select")` for multiple cached accounts. They never
+call `ssoSilent`, `loginRedirect`, or another interactive API in the child. On the
+foreground sign-in continuation, the portal attempts `ssoSilent` first and owns the
+bounded interactive fallback defined by `0031`.
 
 HTTP clients, loaders, and non-React modules receive `instance` from this composition root
 or a resource-pinned adapter created here. Constructing another PCA in an interceptor,

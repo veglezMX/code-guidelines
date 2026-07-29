@@ -1,7 +1,7 @@
 # Authorization Layers
 
 Status: settled
-Decisions: 0005, 0025 · inherits 0015, 0016, 0019
+Decisions: 0030 · supersedes 0005, 0025; inherits 0015, 0016, 0019, 0031
 Sources: pack `10` · independent §16.6, §17 · analysis `02` §6.1 ·
 [Protected API authorization](https://learn.microsoft.com/en-us/entra/msidweb/authentication/authorization) ·
 [Scope and role verification](https://learn.microsoft.com/en-us/entra/identity-platform/scenario-protected-web-api-verification-scope-app-roles) ·
@@ -9,40 +9,53 @@ Sources: pack `10` · independent §16.6, §17 · analysis `02` §6.1 ·
 
 ## Rule
 
-Portal launch checks and child UI capabilities improve navigation and UX; they never
-grant backend access. Every API validates the token for itself and applies resource/domain
-authorization on every protected operation.
+Portal application discovery and child UI capabilities improve navigation and UX; they
+never grant backend access. Each child SPA/backend pair owns its authorization contract.
+Every API validates the token for itself and applies resource/domain authorization on
+every protected operation.
 
 ## Design
 
-The portal API owns launch discovery:
+Endpoint ownership follows the independently deployed backends:
 
-```http
-GET /api/portal/v1/me/applications
-GET /api/portal/v1/me/applications/child0
-GET /api/portal/v1/me/applications/child1
-```
+| Owner | Endpoint | Purpose |
+|---|---|---|
+| Portal API | `GET /api/portal/v1/me/applications` | Portal navigation discovery only |
+| Child0 API | `GET /api/child0/v1/me` | Child0 domain profile and UI capabilities |
+| Child1 API | `GET /api/child1/v1/me` | Child1 domain profile and UI capabilities |
 
-The list drives visible navigation. Before every child launch, the portal revalidates the
-specific application and requires:
+The portal does not expose
+`/api/portal/v1/me/applications/child0` or
+`/api/portal/v1/me/applications/child1`. Owning all three checks in the portal backend
+would couple otherwise independent services and duplicate child authorization policy.
+
+The portal list drives visible navigation and contains stable application codes and
+internal paths, for example:
 
 ```json
 {
-  "applicationId": "child0",
-  "canLaunch": true,
-  "reasonCode": null
+  "applications": [
+    {
+      "applicationId": "child0",
+      "path": "/child0/"
+    }
+  ]
 }
 ```
 
-Responses contain stable application/capability codes only—no names, emails, group lists,
-or role names. Keep them in memory, never browser storage. A list result may be cached in
-memory for display for at most 60 seconds, but the launch click always performs the
-specific check. Denial stays in the portal and does not probe the child.
+It is a portal-owned discovery/visibility hint, not proof that the child will authorize
+the account. Responses contain stable application/capability codes only—no names,
+emails, group lists, or role names. Keep them in memory, never browser storage. The list
+may be cached in memory for display for at most 60 seconds.
 
-Direct child URLs remain safe without the portal guard. On bootstrap, each child calls
-its own API for a domain profile/capability document. The backend may return boolean or
-stable capability codes for UI gating, but the frontend never treats them as proof for a
-later request. Every protected API operation rechecks authorization.
+Launching from the portal and entering a direct child URL follow the same security path.
+If a direct child bootstrap finds no cached account, it preserves the validated child
+path and hands sign-in to the portal under `0031`; it does not call the child API yet.
+After authentication returns to the child, the child calls its own API for a domain
+profile/capability document. A valid but unauthorized account receives `403` from that
+child API and the child renders its own denial experience. The backend may return boolean
+or stable capability codes for UI gating, but the frontend never treats them as proof for
+a later request. Every protected API operation rechecks authorization.
 
 Each backend:
 
@@ -60,32 +73,43 @@ ID tokens never authorize APIs. Frontends do not decode access tokens for capabi
 Group/role claims are not copied into application state; group overage and directory
 lookups are backend concerns.
 
+Portal, child0, and child1 use the same tenant ID, tenant-specific authority, Entra SPA
+client ID, and compatible MSAL cache configuration. That shared browser identity
+configuration does not make the portal backend a gateway and does not merge backend
+ownership. Each API remains an independently deployed protected resource with its own
+audience, delegated permission, and domain policy.
+
 The shared client ID creates a deliberately soft frontend token boundary: malicious
 same-origin code may request another resource's scope. Per-app runtime slices,
 resource-pinned adapters, code review, and bundle tests reduce accidents, but only the
 receiving backend's exact audience and policy enforce access.
 
-The portal backend team owns the launch endpoints. Each child backend team owns its
-capability endpoint and every domain authorization policy. The identity team owns scopes,
+The portal backend team owns application discovery only. Each child backend team owns its
+profile/capability endpoint and every domain authorization policy. The identity team owns
+the shared SPA client registration and tenant configuration plus the separate API scopes,
 roles, consent, and tenant assignment; none of those responsibilities belongs to ingress
-or the React router.
+or the React router. Keeping all frontend code in one repository does not change backend
+endpoint ownership.
 
 ## Why not the alternatives
 
-- **Token acquisition means launch permission** — rejected by `0005`; a token is not a
-  product entitlement decision.
-- **Portal guard is the security boundary** — rejected in `0025`; direct deep links and
-  direct API calls bypass it.
-- **Frontend-decoded roles/groups** — rejected in `0025`; they become stale, leak into
+- **Token acquisition means application permission** — rejected by `0030`; a token is not
+  a product entitlement decision.
+- **Portal-owned per-child launch endpoints** — rejected in `0030`; they centralize and
+  duplicate authorization that belongs to the independently deployed child backends.
+- **Portal discovery is the security boundary** — rejected in `0030`; direct deep links
+  and direct API calls bypass it.
+- **Frontend-decoded roles/groups** — rejected in `0030`; they become stale, leak into
   state, and cannot replace API validation.
 - **One audience for all APIs** — rejected in `0015`; it weakens resource isolation and
   ownership.
-- **Return only 403 for every auth failure** — rejected in `0025`; the client needs the
+- **Return only 403 for every auth failure** — rejected in `0030`; the client needs the
   standard 401/403 distinction for bounded recovery versus denial.
 
 ## Open
 
-1. Product/domain owners must define actual launch and per-operation policies.
+1. Product/domain owners must define portal discovery rules and each child's access and
+   per-operation policies.
 2. The identity owner must choose delegated scopes versus app roles for every
    non-interactive caller; this browser suite uses delegated scopes.
 3. API technology-specific validation middleware belongs in each implementation

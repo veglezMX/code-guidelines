@@ -26,5 +26,6 @@ Microsoft Entra / MSAL are being merged, topic by topic, into one curated soluti
 ## Current status
 
 Research and architecture curation are complete. All twenty topics are settled, with
-accepted decisions `0001`–`0029`. The next phase is implementation, environment
-provisioning and release evidence; see the implementation-gaps report.
+decision records `0001`–`0031` (`0005` and `0025` are superseded by `0030`). The next
+phase is implementation, environment provisioning and release evidence; see the
+implementation-gaps report.

@@ -37,7 +37,8 @@ Playwright Test `1.62.0`, Testing Library React `16.3.2`, DOM `10.4.1`, user-eve
    - one-PCA factory/bootstrap order and error mapping;
    - zero/one/multiple/active account resolution;
    - scope/resource URL pinning and promise deduplication;
-   - continuation parsing, expiry, nonce/state binding and adversarial return paths;
+   - continuation parsing, expiry, nonce/state binding, automatic-sign-in action
+     combinations/one-attempt ceiling, and adversarial return paths;
    - bounded claims parser and opaque relay record rules;
    - 401/403/429/5xx retry table and one-replay ceiling;
    - BroadcastChannel schema/stale/self-message behavior;
@@ -60,7 +61,8 @@ Playwright Test `1.62.0`, Testing Library React `16.3.2`, DOM `10.4.1`, user-eve
    - exact audience, tenant/issuer, expiry, scope/role and domain policy;
    - wrong audience and direct child access fail at the backend;
    - 401 performs no mutation; 403 does not trigger auth retry;
-   - portal launch list/per-click decision and child capabilities;
+   - portal application discovery plus independently owned child0/child1 profile,
+     capability and denial contracts;
    - compliant claims challenge plus five-minute, single-use, subject/resource-bound
      relay behavior;
    - idempotency for declared non-idempotent operations.
@@ -80,6 +82,9 @@ Playwright Test `1.62.0`, Testing Library React `16.3.2`, DOM `10.4.1`, user-eve
    - Chromium, Firefox and WebKit projects use `http://localhost:4173`;
    - portal → child0 → child1 full navigations and deep-link refresh;
    - same-client cached account visible after each document bootstrap;
+   - direct unauthenticated child deep link → portal `ssoSilent` → exact child return;
+   - no Entra session, multiple Entra sessions, and blocked silent iframe each perform at
+     most one automatic portal attempt before interactive sign-in or stable recovery;
    - multiple accounts route to portal selection;
    - interaction continuation returns to the exact validated child route;
    - malicious/expired/missing-storage continuation falls back safely;
