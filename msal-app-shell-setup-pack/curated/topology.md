@@ -138,15 +138,15 @@ nothing about a logout until the user navigates. Detail belongs to topic
    against the shared cache with the shared client ID, nothing in the browser stops
    child0's bundle from requesting a `child1-api` token. Config scoping (`0004`) removes
    the *convenience* — child0 never receives child1's catalog — but not the *capability*.
-   Enforcement is: backend audience validation, plus per-app adapters, plus review, plus
-   tests. Structural enforcement is not achievable under this topology; it was available
-   only under the app-shell pack's injected resource-pinned client and under the rejected
-   BFF option. → topic `authorized-http` (8).
+   Enforcement is: backend audience validation (`0025`), resource-pinned adapters
+   (`0018`, `0019`), review, and tests. Structural enforcement is not achievable under
+   this topology; it was available only under the app-shell pack's injected client and
+   under the rejected BFF option.
 2. **XSS blast radius accepted.** Same origin plus tokens in `localStorage` means script
    execution in any of the three applications can read the shared MSAL cache and mint
    tokens for every API. Identical under the app-shell topology; only the BFF option
-   changes it. → topics `cache-and-storage` (13) and `nginx-and-headers` (17), where CSP
-   is the mitigation.
+   changes it. `0017` accepts the storage consequence and `0026` makes enforcing CSP and
+   same-origin script discipline release requirements.
 3. **Portal chrome is duplicated or absent.** Full-page navigation means no persistent
    shell nav bar. Whether shared chrome is a component in a shared package, duplicated per
    app, or simply omitted is undecided. → topic `workspace-and-packages` (16).

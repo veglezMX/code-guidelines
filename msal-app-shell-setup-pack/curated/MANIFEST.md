@@ -23,13 +23,13 @@ Legend for the Sources column:
 | 8 | `authorized-http` | settled | 0019 · inherits 0004, 0005, 0018 | P `08` · I §16.4–§16.5 · A `02` §6.3, §7.5 · Microsoft protected API guidance |
 | 9 | `interaction-recovery` | settled | 0021 · inherits 0008, 0009, 0016, 0020 | P `09` · I §13, §15.4 · A `02` §5.2, §5.5 · MSAL errors · OWASP redirect guidance |
 | 10 | `cross-tab-and-logout` | settled | 0006, 0023 · inherits 0016, 0017, 0021 | P `07` · I §18 E2E 9 · A `02` §6.2 · MSAL logout/events · BroadcastChannel |
-| 11 | `routing-and-deep-links` | not-started | inherits 0002 | P `09`, P `11` · I §2.1, §15.2, §16.2 · A `02` §5.1 |
-| 12 | `authorization-layers` | not-started | 0005 (layer required) | P `10` · I §16.6, §17 · A `02` §6.1 |
+| 11 | `routing-and-deep-links` | settled | 0024 · inherits 0002, 0007, 0010, 0021 | P `09`, P `11` · I §2.1, §15.2, §16.2 · A `02` §5.1 · Kubernetes/Vite/React Router guidance |
+| 12 | `authorization-layers` | settled | 0005, 0025 · inherits 0015, 0016, 0019 | P `10` · I §16.6, §17 · A `02` §6.1 · Microsoft protected API guidance |
 | 13 | `cache-and-storage` | settled | 0017 · inherits 0003, 0004, 0006, 0013 | P `00` "localStorage security note" · I §7 · A `01`, A `02` §9 · MSAL caching · OWASP storage |
 | 14 | `cae-and-claims-challenge` | settled | 0020 · inherits 0008, 0015, 0018, 0019 | A `01` · Microsoft CAE and claims-challenge guidance |
 | 15 | `token-lifetime-24h` | settled | 0022 · inherits 0003, 0008, 0018, 0021 | A `01` · A `02` §9 · Microsoft token-lifetime guidance |
 | 16 | `workspace-and-packages` | not-started | inherits 0002, 0004, 0007, 0010 | P `03` · I §4, §5, §6 |
-| 17 | `nginx-and-headers` | not-started | inherits 0002, 0004, 0007 | P `11` · I §2.1 (thin) · A `02` §6.5 |
+| 17 | `nginx-and-headers` | settled | 0026 · inherits 0002, 0004, 0007, 0013, 0017, 0024 | P `11` · I §2.1 (thin) · A `02` §6.5 · nginx/CSP/Kubernetes guidance |
 | 18 | `observability` | not-started | 0009 (needs an event) | P `12` · I §20 · A `02` §5.4 |
 | 19 | `testing` | not-started | inherits 0010 | P `12` · I §18 |
 | 20 | `version-baseline` | settled | 0013, 0014 · inherits 0007 | P `00` · I §21 · A `01` addendum, A `02` §10 · `research.md` versions, §6 · npm registry · Oxlint docs |
@@ -46,8 +46,9 @@ Topic 5 (`redirect-bridge`) is settled (2026-07-28, refined 2026-07-29), and top
 guidance. Topics 7, 8 and 14 are also settled with resource-pinned acquisition, one
 bounded authentication replay, and a navigation-safe claims relay. Nothing is blocking.
 Topics 9, 10 and 15 are settled with explicit portal continuation, on-demand renewal, and
-single-initiator logout. Continue with 11 (`routing-and-deep-links`), 12
-(`authorization-layers`), and 17 (`nginx-and-headers`).
+single-initiator logout. Topics 11, 12 and 17 are settled with path-preserving ingress,
+backend-authoritative access and service-owned headers. Continue with 16
+(`workspace-and-packages`), 18 (`observability`), and 19 (`testing`).
 
 ## Coverage note
 

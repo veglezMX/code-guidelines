@@ -9,13 +9,15 @@ Workspace created. Both source architectures were read and compared
 `research.md` were checked against current primary sources; corrections are appended to
 `../analysis/01-microsoft-guidance-review.md`.
 
-Fourteen topics are `settled`: `topology` (1), `bff-alternative` (2),
+Seventeen topics are `settled`: `topology` (1), `bff-alternative` (2),
 `entra-registration` (3), `msal-instance-and-bootstrap` (4), `redirect-bridge` (5),
 `account-resolution` (6), `token-acquisition` (7), `authorized-http` (8),
-`interaction-recovery` (9), `cross-tab-and-logout` (10), `cache-and-storage` (13),
-`cae-and-claims-challenge` (14), `token-lifetime-24h` (15), and `version-baseline` (20).
+`interaction-recovery` (9), `cross-tab-and-logout` (10), `routing-and-deep-links` (11),
+`authorization-layers` (12), `cache-and-storage` (13),
+`cae-and-claims-challenge` (14), `token-lifetime-24h` (15),
+`nginx-and-headers` (17), and `version-baseline` (20).
 The architecture is **three independently deployed SPAs on one origin, composed by
-navigation, with MSAL in the browser**. Six topics are `not-started`.
+navigation, with MSAL in the browser**. Three topics are `not-started`.
 
 Settled invariants that every later topic inherits:
 
@@ -68,6 +70,12 @@ Settled invariants that every later topic inherits:
   reload timer; real interaction-required outcomes use the continuation.
 - Logout is portal-only and single-initiator. Other documents clear/block locally on
   `company.portal.auth.v1`; MSAL/lifecycle events are the no-channel fallback.
+- Kubernetes Ingress preserves paths and selects the owner by exact/prefix match; each
+  service owns its Vite/router base, history fallback, cache policy and 404s.
+- Portal launch checks are UX. Every API validates its own exact audience, delegated
+  permission and domain policy; direct child routes remain safe.
+- Ingress owns TLS/HSTS. Web-service nginx owns CSP/cache/fallbacks. Normal pages deny
+  framing and use COOP; the bridge is no-store, same-origin-frameable and has no COOP.
 
 ## Blocking now
 
@@ -75,11 +83,10 @@ Nothing is blocking.
 
 ## Next up
 
-1. `routing-and-deep-links` (11) — exact ingress precedence and app-owned fallbacks.
-2. `authorization-layers` (12) — portal launch UX plus backend authority.
-3. `nginx-and-headers` (17) — SPA caches/fallbacks and the shared security-header policy.
-4. `workspace-and-packages` (16) — package boundaries and the single-origin dev gateway.
-5. `observability` (18), then `testing` (19) — privacy-safe evidence and release gates.
+1. `workspace-and-packages` (16) — package boundaries and the single-origin dev gateway.
+2. `observability` (18) — privacy-safe evidence.
+3. `testing` (19) — full release gates and the unsupported-by-guidance multi-document
+   browser proof.
 
 ## Open items carried in
 
@@ -88,20 +95,18 @@ Established during analysis or during the topology session, not yet decided.
 1. **Pack renders `error.message`.** Under v5 that string is a docs URL. Same problem in
    its `loggerCallback`, since v5 console messages are hashed. The independent approach
    already handles this correctly. → topic `observability`.
-2. **Portal backend dependency.** `0005` requires a `canLaunch` endpoint that exists in
-   neither source's backend scope. Needs an owner. → topic `authorization-layers`.
-3. **Shared chrome undecided.** Full-page navigation means no persistent nav bar; whether
+2. **Shared chrome undecided.** Full-page navigation means no persistent nav bar; whether
    chrome is packaged, duplicated, or omitted is open. → topic `workspace-and-packages`.
-4. **Single-origin dev mechanism unchosen.** `0010` fixes the constraint, not the tool.
+3. **Single-origin dev mechanism unchosen.** `0010` fixes the constraint, not the tool.
     → topic `workspace-and-packages`.
-5. **Cross-instance renewal races are not validated.** MSAL deduplicates equivalent
+4. **Cross-instance renewal races are not validated.** MSAL deduplicates equivalent
     silent requests within one PCA, not across the three live PCAs. Gate child startup
     behind account resolution and test simultaneous renewals. → topics `token-acquisition`
     and `testing`.
-6. **Version set is not runtime-proven.** Registry availability, peer ranges, engines,
+5. **Version set is not runtime-proven.** Registry availability, peer ranges, engines,
     and nginx directive support are verified; installation/build/browser validation and
     exact container digests remain. → topics `workspace-and-packages`, `testing`.
-7. **No official v5 multi-SPA how-to.** Shared-origin/shared-client cache behavior is
+6. **No official v5 multi-SPA how-to.** Shared-origin/shared-client cache behavior is
     assembled from Microsoft SSO/caching guidance and package source. Validate the exact
     three-document deployment in the browser matrix. → topic `testing`.
 
@@ -138,3 +143,6 @@ single exact MSAL resolution.
 | 0021 | interaction-recovery | Recover interaction through one explicit portal continuation |
 | 0022 | token-lifetime-24h | Renew on demand and recover explicitly at the SPA lifetime boundary |
 | 0023 | cross-tab-and-logout | Make logout portal-only and single-initiator |
+| 0024 | routing-and-deep-links | Preserve route prefixes and keep fallbacks application-owned |
+| 0025 | authorization-layers | Keep portal launch authorization as UX and APIs as authority |
+| 0026 | nginx-and-headers | Keep SPA headers/fallbacks in services with a bridge exception |
