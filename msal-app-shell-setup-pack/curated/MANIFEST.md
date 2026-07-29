@@ -32,7 +32,7 @@ Legend for the Sources column:
 | 17 | `nginx-and-headers` | not-started | inherits 0002, 0004, 0007 | P `11` · I §2.1 (thin) · A `02` §6.5 |
 | 18 | `observability` | not-started | 0009 (needs an event) | P `12` · I §20 · A `02` §5.4 |
 | 19 | `testing` | not-started | inherits 0010 | P `12` · I §18 |
-| 20 | `version-baseline` | settled | 0013 · inherits 0007 | P `00` · I §21 · A `01` addendum, A `02` §10 · `research.md` versions, §6 · npm registry |
+| 20 | `version-baseline` | settled | 0013, 0014 · inherits 0007 | P `00` · I §21 · A `01` addendum, A `02` §10 · `research.md` versions, §6 · npm registry · Oxlint docs |
 
 ## Ordering constraint
 

@@ -1,7 +1,7 @@
 # Version Baseline
 
 Status: settled
-Decisions: 0013 · inherits 0007
+Decisions: 0013, 0014 · inherits 0007
 Sources: pack `00` · independent §21 · analysis `02` §10 · `research.md` "Versions" and
 §6 · npm registry queried 2026-07-29 ·
 [MSAL Browser v4→v5 migration](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/v4-migration)
@@ -28,13 +28,31 @@ Registry-verified baseline on **2026-07-29**:
 | `@vitejs/plugin-react` | `6.0.4` |
 | TypeScript | `7.0.2` |
 | pnpm | `11.18.0` |
-| Node.js | `>=22.22.0` |
+| Node.js | `>=22.22.2` |
 | nginx | `>=1.29.3`; verified stable `1.30.4`, mainline `1.31.3` |
 
 `@azure/msal-react@5.5.4` requires `@azure/msal-browser ^5.17.3`, Node `>=20`, and React
 `^16.8.0 || ^17 || ^18 || ^19.2.1`. The chosen pair is compatible. React Router's Node
 `>=22.22.0` requirement is the highest minimum in the direct frontend set and therefore
-sets the build/runtime floor.
+sets the application build floor. The test baseline raises it two patch releases to
+`>=22.22.2` because `jsdom@30.0.1` requires that version on the Node 22 line.
+
+Exact development-quality baseline, registry-verified on **2026-07-29**:
+
+| Package | Exact version |
+|---|---:|
+| Vitest | `4.1.10` |
+| `@vitest/coverage-v8` | `4.1.10` |
+| Playwright Test | `1.62.0` |
+| Testing Library React | `16.3.2` |
+| Testing Library DOM | `10.4.1` |
+| Testing Library user-event | `14.6.1` |
+| jsdom | `30.0.1` |
+| Oxlint | `1.76.0` |
+| `oxlint-tsgolint` | `7.0.2001` |
+| React types | `19.2.17` |
+| React DOM types | `19.2.3` |
+| Node 22 types | `22.20.1` |
 
 ## Design
 
@@ -60,7 +78,7 @@ The root `package.json` pins the package manager:
 {
   "packageManager": "pnpm@11.18.0",
   "engines": {
-    "node": ">=22.22.0"
+    "node": ">=22.22.2"
   }
 }
 ```
@@ -75,9 +93,35 @@ CI must fail when:
 - the lockfile changes without the dependency-update review;
 - the portal bridge bundle and any application bundle contain different
   `@azure/msal-browser` versions;
-- the build image's Node version does not satisfy `>=22.22.0`;
+- the build image's Node version does not satisfy `>=22.22.2`;
 - the nginx image is older than `1.29.3` while the configuration uses
   `add_header_inherit merge`.
+
+The quality toolchain is also exact:
+
+```bash
+pnpm add --save-dev --save-exact \
+  vitest@4.1.10 \
+  @vitest/coverage-v8@4.1.10 \
+  @playwright/test@1.62.0 \
+  @testing-library/react@16.3.2 \
+  @testing-library/dom@10.4.1 \
+  @testing-library/user-event@14.6.1 \
+  jsdom@30.0.1 \
+  oxlint@1.76.0 \
+  oxlint-tsgolint@7.0.2001 \
+  @types/react@19.2.17 \
+  @types/react-dom@19.2.3 \
+  @types/node@22.20.1
+```
+
+Use Oxlint with its built-in React, React Hooks, TypeScript, import, Vitest, and
+accessibility rule sets. Enable type-aware rules through `oxlint-tsgolint`; keep
+`tsc --noEmit` as a separate CI gate until Oxlint's type-check mode is no longer
+experimental.
+
+Do not add `typescript-eslint@8.65.0`: its registry peer range is
+`typescript >=4.8.4 <6.1.0`, which excludes the settled TypeScript `7.0.2` baseline.
 
 ### Upgrade policy
 
@@ -142,7 +186,5 @@ cache headers.
    an implementation repository. `testing` (19) owns that proof.
 2. Pin the exact Node container image digest and nginx image digest when the deployment
    repository is known.
-3. Direct test, lint, type, and browser-test dependencies are not specified by either
-   architecture and must be added with the implementation workspace.
-4. Patch versions are fluid. Re-query the registry only in a controlled dependency-update
+3. Patch versions are fluid. Re-query the registry only in a controlled dependency-update
    session; do not edit this table opportunistically.

@@ -40,7 +40,10 @@ Settled invariants that every later topic inherits:
 - Bridge timeouts begin explicitly at iframe `10_000` ms and popup `60_000` ms.
 - Exact baseline: `@azure/msal-browser@5.17.3`,
   `@azure/msal-react@5.5.4`, React/DOM `19.2.8`, React Router `8.3.0`, Vite `8.1.5`,
-  TypeScript `7.0.2`, pnpm `11.18.0`, Node `>=22.22.0`; one physical MSAL copy.
+  TypeScript `7.0.2`, pnpm `11.18.0`, Node `>=22.22.2`; one physical MSAL copy.
+- Exact quality baseline: Vitest `4.1.10`, Playwright Test `1.62.0`, jsdom `30.0.1`,
+  Oxlint `1.76.0`, and `oxlint-tsgolint` `7.0.2001`; `typescript-eslint` is excluded
+  because its current peer range does not support TypeScript 7.
 - Local development is single-origin, mirroring the production route map.
 
 ## Blocking now
@@ -130,3 +133,4 @@ single exact MSAL resolution.
 | 0011 | msal-instance-and-bootstrap | Bootstrap once before render; MSAL context remains the state source |
 | 0012 | msal-instance-and-bootstrap | Start with explicit v5 default bridge timeouts |
 | 0013 | version-baseline | Pin one exact, compatible frontend and MSAL baseline |
+| 0014 | version-baseline | Use a TypeScript 7-compatible exact quality toolchain |
