@@ -1,14 +1,17 @@
 # Topology
 
 Status: settled
-Decisions: 0002, 0003, 0004, 0006, 0030 · refined by 0007, 0011, 0031
+Decisions: 0002, 0003, 0004, 0006, 0030, 0032, 0033 · refined by 0007, 0011, 0031
 Sources: pack `01`, `03`, `11` · independent §2, §23 · analysis `02` §1–§6, §11 ·
 analysis `01` §3
 
 ## Rule
 
-The system is **three independently built and deployed single-page applications on one
-origin**, composed by navigation, not at runtime.
+The system is **three separately built, separately imaged and separately deployed
+single-page applications on one origin**, composed by navigation, not at runtime.
+Independence is per-artifact, per-route and per-backend. It is **not** independence of
+identity configuration, of the shared MSAL baseline, or of release coordination, and it
+is not independence of availability — see invariant 10.
 
 1. `apps/portal`, `apps/child0`, `apps/child1` are separate documents. Each ships its own
    `index.html`, its own bundle, and its own router.
@@ -38,6 +41,18 @@ origin**, composed by navigation, not at runtime.
    authorization decision. The portal also owns a payload-free **cross-tab logout
    signal**. Shared frontend source and identity configuration do not merge backend
    ownership.
+10. **Independence has a fixed scope, and `portal-web` is tier-0.** Build, image,
+    pipeline, route tree, router, 404s, backend and authorization contract are
+    independent per application. Origin, Entra client ID, authority, `cache`
+    configuration, the portal-owned bridge document, `/portal-runtime.json`, the pnpm
+    lockfile and the single physical MSAL resolution are shared, so a change to any of
+    them is a **coordinated three-application release**, not an independent one. Beyond
+    release coupling, `portal-web` is an availability dependency of every application's
+    authentication: it serves the bridge, `/auth/continue`, `/account/select`,
+    `/login`, `/logout`, `/signed-out` and the runtime configuration. Its
+    unavailability stops sign-in, silent renewal, interaction recovery and logout in
+    child0 and child1, and blocks their startup entirely. `portal-web` is therefore
+    operated at the highest availability tier in the suite; see `observability` (18).
 
 ## Design
 
@@ -110,6 +125,36 @@ One shared SPA client registration, used by all three documents (required by inv
 4). Separate API registrations per backend: `portal-api`, `child0-api`, `child1-api`.
 Detail belongs to topic `entra-registration` (3).
 
+### Independence and coupling
+
+State the boundary exactly; "three independent SPAs" on its own is misleading to an
+operations or release owner.
+
+| Concern | Independent per application | Shared, therefore coordinated |
+|---|---|---|
+| Source tree, router, routes, 404s | yes | — |
+| Vite build, container image, Deployment, pipeline | yes | — |
+| Product release cadence for app-local change | yes | — |
+| Backend, audience, delegated scope, domain policy | yes | — |
+| Origin, client ID, authority, `cache` config | — | yes (invariant 4) |
+| `/auth-redirect.html` bridge document | — | yes, portal-owned (`0007`) |
+| `/portal-runtime.json` | — | yes, portal-served (`0004`) |
+| pnpm lockfile and exact MSAL resolution | — | yes (`0013`, `0027`) |
+| Shared packages (`auth-*`, `session-sync`, `app-chrome`) | — | yes; a change rebuilds every dependent app |
+| Availability of authentication | — | yes; depends on `portal-web` |
+
+Consequences that must appear in the release and operations plan:
+
+- An MSAL, bridge, runtime-config-shape, or shared auth-package change is one planned
+  three-application rollout in the order portal → child0 → child1 (`version-baseline`),
+  not three independent decisions.
+- `portal-web` is the suite's tier-0 service. Child availability targets cannot exceed
+  portal's, and a portal deployment window is an authentication window for all three
+  applications.
+- What independence actually buys here is **separate teams owning separate backends,
+  route trees and product releases** on one shared browser client — not a decoupled
+  frontend release train.
+
 ### Application discovery and child authorization
 
 The portal uses `GET /api/portal/v1/me/applications` to build navigation, then performs a
@@ -145,19 +190,36 @@ nothing about a logout until the user navigates. Detail belongs to topic
 
 ## Open
 
-1. **The token boundary is soft.** Because child0's document runs its own MSAL instance
-   against the shared cache with the shared client ID, nothing in the browser stops
-   child0's bundle from requesting a `child1-api` token. Config scoping (`0004`) removes
-   the *convenience* — child0 never receives child1's catalog — but not the *capability*.
-   Enforcement is: backend audience validation (`0030`), resource-pinned adapters
-   (`0018`, `0019`), review, and tests. Structural enforcement is not achievable under
-   this topology; it was available only under the app-shell pack's injected client and
-   under the rejected BFF option.
-2. **XSS blast radius accepted.** Same origin plus tokens in `localStorage` means script
-   execution in any of the three applications can read the shared MSAL cache and mint
-   tokens for every API. Identical under the app-shell topology; only the BFF option
-   changes it. `0017` accepts the storage consequence and `0026` makes enforcing CSP and
-   same-origin script discipline release requirements.
+1. **The token boundary is soft, and backend audience validation does not close it.**
+   Because child0's document runs its own MSAL instance against the shared cache with the
+   shared client ID, nothing in the browser stops child0's bundle from requesting a
+   `child1-api` token. Config scoping (`0004`) removes the *convenience* — child0 never
+   receives child1's catalog — but not the *capability*. Two cases must be separated:
+
+   - **Accidental cross-resource use** — a mistake in application code. Controlled by
+     per-application runtime slices (`0004`), resource-pinned adapters (`0018`, `0019`),
+     review, bundle tests, and the wrong-audience denial test. Backend audience
+     validation (`0030`) is the backstop that turns the mistake into a clean `401`.
+   - **Hostile same-origin code** — script running on the origin asks MSAL for a
+     `child1-api` token and receives a token with the **correct** audience, scope and
+     subject. Audience validation passes; `0030` is not a control for this case and must
+     not be described as one. The controls are the same ones `0017` names for the storage
+     consequence: strict enforcing CSP with no `unsafe-inline`/`unsafe-eval`/wildcards
+     (`0026`), no unreviewed third-party runtime script, exact dependency and lockfile
+     review with a single physical MSAL resolution (`0013`, `0027`), same-origin script
+     discipline, and prompt patching. They reduce the probability of execution; none of
+     them constrains what already-executing same-origin code may request.
+
+   Structural enforcement is not achievable under this topology; it was available only
+   under the app-shell pack's injected client and under the rejected BFF option.
+2. **XSS blast radius accepted, and it is suite-wide.** Same origin plus tokens in
+   `localStorage` plus one shared client ID means script execution in **any one** of the
+   three applications can read the shared MSAL cache and mint tokens for **every** API.
+   Three applications, one browser security boundary, one blast radius; a supply-chain
+   compromise in a child0-only dependency reaches `portal-api` and `child1-api`.
+   Identical under the app-shell topology; only the BFF option changes it. `0017` accepts
+   the storage consequence and `0026` makes enforcing CSP and same-origin script
+   discipline release requirements.
 3. **`/portal-runtime.json` naming.** The endpoint is named for the portal but is consumed
    by all three applications. Kept as the user specified. If a fourth consumer or a second
    environment makes the name misleading, rename it there, not here.

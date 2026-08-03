@@ -1,7 +1,7 @@
 # Entra Registration
 
 Status: settled
-Decisions: 0015 · inherits 0002, 0007, 0010
+Decisions: 0015 · inherits 0002, 0007, 0010, 0033
 Sources: pack `02` · independent §3, §6 ·
 [Redirect URI restrictions](https://learn.microsoft.com/en-us/entra/identity-platform/reply-url) ·
 [Expose a web API](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-configure-app-expose-web-apis) ·
@@ -13,6 +13,9 @@ Within one environment, portal, child0, and child1 are three route owners of **o
 logical browser client**. They use one tenant-specific Entra SPA registration and the
 same client ID. This is also one shared authentication and browser-security boundary;
 the applications must not be represented as unrelated clients merely to reuse a cache.
+Consent, assignment and Conditional Access apply to that one client, and code executing
+in any of the three documents can obtain tokens for all three APIs. Threat-model the
+suite as one client with three route owners, not as three clients.
 
 Every backend is a separate protected resource registration with its own Application ID
 URI, delegated scope, audience, policy, and owner. Keeping the frontend applications in

@@ -1,7 +1,7 @@
 # Observability
 
 Status: settled
-Decisions: 0028 · inherits 0009, 0017, 0018, 0019, 0020, 0023, 0026
+Decisions: 0028, 0032 · inherits 0009, 0017, 0018, 0019, 0020, 0023, 0026
 Sources: pack `12` · independent §20 · analysis `02` §5.4 ·
 [MSAL performance events](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/performance) ·
 [MSAL errors](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/errors) ·
@@ -95,6 +95,29 @@ Alert on release-over-release regressions, bridge-unavailable spikes, redirect l
 terminal-401 spikes, config failures, and missing immutable chunks. Exact SLO thresholds
 must come from a measured production baseline and product error budget.
 
+### Service tiers
+
+`portal-web` is **tier-0** for the whole suite, per `topology` invariant 10. It serves
+`/auth-redirect.html`, `/portal-runtime.json`, `/auth/continue`, `/account/select`,
+`/login`, `/logout` and `/signed-out`. While it is unavailable, child0 and child1 cannot
+bootstrap, cannot renew silently (the v5 iframe response is delivered to the portal-owned
+bridge), cannot recover interaction, and cannot log out. Consequences for the operations
+plan:
+
+- `portal-web` carries the highest availability objective in the suite; `child0-web` and
+  `child1-web` availability objectives cannot exceed it, because their effective
+  availability is their own times portal's.
+- A `portal-web` deployment window is an authentication window for all three
+  applications. Roll it out with surge/zero-downtime settings and a readiness gate on
+  the bridge and runtime-config responses, not as an ordinary web deploy.
+- Alert on `portal-web` bridge and `/portal-runtime.json` availability and on
+  `auth.bridge.unavailable` / `runtime.config.failed` reported by **child** applications;
+  those two child-side events are the earliest external signal of a portal-side fault.
+- Page on portal bridge/runtime-config unavailability regardless of which application
+  reports it. Attribute the event by `applicationId`, but treat it as one incident.
+- The claims relay (`/api/auth-challenges`) is tier-1: its loss degrades CAE recovery
+  only. Do not fold it into the portal-web objective.
+
 nginx/ingress logs follow `0026`: normalized path without query, status/duration/service,
 release, request/trace ID. Claims relay logs outcome/expiry only and never the handle or
 record. Access controls, regional storage, retention, deletion, and vendor data processing
@@ -118,5 +141,5 @@ must be approved before production export.
 1. Select the telemetry vendor/exporter, region, retention, access model, sampling rates
    and CSP endpoint.
 2. Establish SLO/error-budget thresholds after pre-production and initial production
-   baselines.
+   baselines, with `portal-web` set first because the child objectives are bounded by it.
 3. Security/privacy owners must approve the final event dictionary and redaction tests.

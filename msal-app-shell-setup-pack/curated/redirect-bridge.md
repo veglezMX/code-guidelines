@@ -1,7 +1,7 @@
 # Redirect Bridge
 
 Status: settled
-Decisions: 0007, 0008, 0009, 0010, 0011, 0012 · inherits 0002, 0004
+Decisions: 0007, 0008, 0009, 0010, 0011, 0012 · inherits 0002, 0004, 0032
 Sources: pack `00` "Important MSAL v5 changes", pack `05`, pack `11` · independent §12,
 §15.1–§15.4 · analysis `01` §1, §2.5, rec 10 · analysis `02` §7.1–§7.4 ·
 `research.md` §1 ·
@@ -219,6 +219,11 @@ topic 16's to choose; the single-origin constraint is fixed here.
 1. **Version-skew interoperability is undocumented.** `0013` removes the practical
    exposure by pinning one physical `@azure/msal-browser@5.17.3` across the bridge and all
    applications. Reopen only if independent release pipelines make that impossible.
-2. **Portal deploy coupling accepted.** Under `0007` a bridge change requires a portal
-   deploy, which children depend on for authentication. Revisit only if release cadences
-   diverge enough to hurt.
+2. **Portal deploy coupling and portal availability coupling accepted.** Under `0007` a
+   bridge change requires a portal deploy, which children depend on for authentication.
+   The stronger consequence is availability, not cadence: because the bridge receives
+   every redirect *and* every v5 silent-iframe response, `portal-web` being unavailable
+   stops child0 and child1 from bootstrapping, renewing silently, recovering interaction,
+   and logging out. `portal-web` is therefore tier-0 for the suite (`topology` invariant
+   10, `observability` service tiers), and its rollouts are gated on the bridge and
+   runtime-config responses. Revisit only if release cadences diverge enough to hurt.

@@ -1,7 +1,7 @@
 # Authorization Layers
 
 Status: settled
-Decisions: 0030 · supersedes 0005, 0025; inherits 0015, 0016, 0019, 0031
+Decisions: 0030, 0033 · supersedes 0005, 0025; inherits 0015, 0016, 0019, 0031
 Sources: pack `10` · independent §16.6, §17 · analysis `02` §6.1 ·
 [Protected API authorization](https://learn.microsoft.com/en-us/entra/msidweb/authentication/authorization) ·
 [Scope and role verification](https://learn.microsoft.com/en-us/entra/identity-platform/scenario-protected-web-api-verification-scope-app-roles) ·
@@ -79,10 +79,24 @@ configuration does not make the portal backend a gateway and does not merge back
 ownership. Each API remains an independently deployed protected resource with its own
 audience, delegated permission, and domain policy.
 
-The shared client ID creates a deliberately soft frontend token boundary: malicious
-same-origin code may request another resource's scope. Per-app runtime slices,
-resource-pinned adapters, code review, and bundle tests reduce accidents, but only the
-receiving backend's exact audience and policy enforce access.
+The shared client ID creates a deliberately soft frontend token boundary: same-origin
+code may request another resource's scope. Separate the two cases.
+
+*Accidental* cross-resource acquisition is application error. Per-app runtime slices,
+resource-pinned adapters, code review, and bundle tests reduce it, and the receiving
+backend's exact audience check turns anything that slips through into a clean `401`.
+
+*Hostile* same-origin code is different: it asks MSAL for the other resource's scope and
+receives a token with the correct audience, scope and subject, which every backend check
+in this document then accepts. Audience and policy validation is therefore **not** a
+control against same-origin script — it is a control against wrong-audience bugs,
+token replay across resources, and callers outside the browser. The controls that apply
+to hostile same-origin code sit in `nginx-and-headers` (17), `cache-and-storage` (13) and
+`version-baseline` (20): an enforcing CSP with no `unsafe-inline`, `unsafe-eval` or
+wildcard script/connect sources, no unreviewed third-party runtime script, exact
+dependency and lockfile review with one physical MSAL resolution, same-origin script
+discipline, and prompt patching. Do not present backend validation as closing the
+frontend boundary; it bounds the damage of mistakes, not of code execution.
 
 The portal backend team owns application discovery only. Each child backend team owns its
 profile/capability endpoint and every domain authorization policy. The identity team owns
@@ -103,6 +117,9 @@ endpoint ownership.
   state, and cannot replace API validation.
 - **One audience for all APIs** — rejected in `0015`; it weakens resource isolation and
   ownership.
+- **Describing exact-audience validation as the control for the soft frontend token
+  boundary** — rejected in `0033`; hostile same-origin code obtains a correctly
+  audienced token, so the control set is CSP, supply-chain and script discipline.
 - **Return only 403 for every auth failure** — rejected in `0030`; the client needs the
   standard 401/403 distinction for bounded recovery versus denial.
 

@@ -1,6 +1,6 @@
 # State
 
-Last updated: 2026-07-29.
+Last updated: 2026-08-03.
 
 ## Where things stand
 
@@ -25,6 +25,15 @@ Settled invariants that every later topic inherits:
 
 - Three documents: `apps/portal`, `apps/child0`, `apps/child1`. `/child0/*` serves
   child0's own `index.html`. Application switch is a full page navigation.
+- Independence is per-artifact, per-route and per-backend only. Origin, client ID,
+  authority, `cache`, bridge, runtime JSON, lockfile and the single MSAL resolution are
+  shared, so any change to them is one coordinated portal → child0 → child1 release.
+  `portal-web` is tier-0: while it is unavailable no application can bootstrap, renew
+  silently, recover interaction, or log out (`0032`).
+- The soft frontend token boundary is not closed by backend audience validation. That
+  check bounds accidents; hostile same-origin code receives a correctly audienced token.
+  The controls are enforcing CSP, no third-party runtime script, exact dependency and
+  lockfile review, same-origin script discipline and prompt patching (`0033`).
 - Exactly one `PublicClientApplication` per loaded document. State shared only through the
   same-origin MSAL cache, which makes identical origin, client ID, authority and `cache`
   config a hard invariant.
@@ -122,7 +131,8 @@ The consolidated hand-off is [`../IMPLEMENTATION-GAPS.md`](../IMPLEMENTATION-GAP
 5. **Product inputs:** portal/account/recovery/logout/error UX, route manifests, domain
    authorization rules, long-running draft preservation and accessibility review.
 6. **Operations/privacy inputs:** exporter/vendor, CSP reporting, region/retention/access,
-   sampling, SLO/error budgets, alert ownership and approved event dictionary.
+   sampling, SLO/error budgets, alert ownership and approved event dictionary. Set the
+   `portal-web` tier-0 objective first; child objectives are bounded by it.
 7. **Evidence:** one physical MSAL resolution; enforcing CSP; direct-child silent-first
    sign-in/exact return; all browser/deep-link/multi-tab/concurrent-renewal tests;
    wrong-audience denial; protected real-Entra three-document smoke; CAE challenge; and
@@ -169,3 +179,5 @@ single exact MSAL resolution.
 | 0029 | testing | Require layered browser and real-Entra release proof |
 | 0030 | authorization-layers | Keep child authorization endpoints with independently deployed child backends |
 | 0031 | interaction-recovery | Make direct child entry a bounded silent-first portal sign-in flow |
+| 0032 | topology | State the independence scope exactly and operate `portal-web` as tier-0 |
+| 0033 | authorization-layers | Name CSP and supply-chain discipline, not audience validation, as the soft-boundary controls |

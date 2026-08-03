@@ -1,7 +1,7 @@
 # Routing and Deep Links
 
 Status: settled
-Decisions: 0024 · inherits 0002, 0007, 0010, 0021, 0031
+Decisions: 0024 · inherits 0002, 0007, 0010, 0021, 0031, 0032
 Sources: pack `09`, `11` · independent §2.1, §15.2, §16.2 · analysis `02` §5.1 ·
 [Kubernetes Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) ·
 [Vite public base path](https://vite.dev/guide/build#public-base-path) ·
@@ -79,6 +79,13 @@ release. HTML is revalidated/no-cache; immutable assets may be cached for one ye
 The deployment may satisfy retention with a same-origin artifact service or by carrying
 the retained releases in the active web image, but the publish-assets-before-HTML and
 old-chunk-availability contract is mandatory.
+
+Rollout is independent per application only for application-local change. `portal-web`
+additionally serves the bridge, runtime config and every interactive auth route, so its
+blue/green switch is an authentication event for all three applications and needs a
+readiness gate on `/auth-redirect.html` and `/portal-runtime.json` before traffic moves
+(`topology` invariant 10, `observability` service tiers). A shared-package or MSAL change
+is one coordinated portal → child0 → child1 rollout.
 
 Local development reproduces the same route map at `http://localhost:4173`; separate Vite
 ports are upstream implementation details and never appear in browser URLs.

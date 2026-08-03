@@ -1,7 +1,7 @@
 # Workspace and Packages
 
 Status: settled
-Decisions: 0027 · inherits 0002, 0004, 0007, 0010, 0013, 0024
+Decisions: 0027 · inherits 0002, 0004, 0007, 0010, 0013, 0024, 0032
 Sources: pack `03` · independent §4, §5, §6 ·
 [pnpm workspaces](https://pnpm.io/workspaces) ·
 [pnpm Docker guidance](https://pnpm.io/docker) ·
@@ -58,9 +58,19 @@ session/capability models and callbacks rather than importing auth internals. CI
 cycles and imports through another package's private path.
 
 `app-chrome` is duplicated into each bundle by design. It gives consistent navigation
-and recovery UI, but full-page navigation means no persistent shell instance. Package
-changes can require multiple application builds without coupling their production
-deployment times.
+and recovery UI, but full-page navigation means no persistent shell instance.
+
+Be precise about what this workspace makes independent. Independent: source tree, Vite
+build, image, Deployment, pipeline, and the release of any change local to one
+application. Coordinated: anything in a shared package or the shared dependency set.
+A change to `auth-core`, `auth-react`, `authorized-http`, `session-sync`, `app-chrome`,
+`runtime-config`, the MSAL version, or common nginx policy rebuilds every dependent
+application and ships as one planned rollout in the order portal → child0 → child1
+(`version-baseline`, `topology` invariant 10). Applications may sit at different
+versions of a shared package between steps of that rollout, but they must not be left
+there: the shared MSAL resolution and the shared bridge are single-version contracts.
+Independent deployment mechanics are real; an independent release train for shared auth
+code is not.
 
 The root pins `packageManager: pnpm@11.18.0`, Node `>=22.22.2`, the exact dependency
 catalog from `version-baseline`, and overrides for the one allowed MSAL versions.

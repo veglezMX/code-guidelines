@@ -15,6 +15,22 @@ Their backends remain independently deployed protected resources with separate
 registrations/audiences. If the browser frontends become independently governed or
 unrelated products, the one-registration decision must be replaced.
 
+Two consequences of that boundary, corrected on 2026-08-03 (`0032`, `0033`) and now
+stated in the topic files:
+
+- **Independence is scoped.** Build, image, pipeline, route tree and backend are
+  independent per application. Origin, client ID, authority, `cache`, the bridge
+  document, `/portal-runtime.json`, the lockfile and the single MSAL resolution are
+  shared, so changing any of them is one coordinated portal → child0 → child1 release.
+  `portal-web` is the suite's **tier-0** service: while it is unavailable, child0 and
+  child1 cannot bootstrap, renew silently, recover interaction, or log out.
+- **Backend audience validation does not close the frontend token boundary.** It bounds
+  accidental cross-resource use; hostile same-origin code obtains a correctly audienced
+  token that every backend check accepts. The controls are an enforcing CSP, no
+  third-party runtime script, exact dependency/lockfile review, same-origin script
+  discipline and prompt patching. Treat the CSP as a release-blocking control, not
+  hardening.
+
 ## Missing before implementation can be configured
 
 | Input | Owner | Required output |
@@ -26,6 +42,7 @@ unrelated products, the one-registration decision must be replaced.
 | Product routes/UX | Product + frontend | route manifests; sign-in, account, continue, logout, denial and error copy/design |
 | Domain authorization | Product + API owners | portal discovery rules, child access/capabilities, per-operation policies and idempotency contracts |
 | Operations/privacy | Operations + privacy | telemetry vendor/region/retention/access, CSP reporting, SLOs and alert ownership |
+| Service tiers | Operations | `portal-web` tier-0 objective set first, child objectives bounded by it, portal change windows treated as authentication windows |
 
 ## Missing implementation artifacts
 
@@ -68,6 +85,9 @@ unrelated products, the one-registration decision must be replaced.
 - Dashboards/alerts for bootstrap, bridge, continuation, renewal, claims, 401 replay,
   logout, CSP and missing chunks.
 - Measured baselines and SLO/error budgets; browser telemetry is not the audit source.
+- `portal-web` tier-0 availability objective, readiness gate on the bridge and
+  `/portal-runtime.json` before a portal blue/green switch, and paging on child-reported
+  `auth.bridge.unavailable` / `runtime.config.failed`.
 
 ## Missing validation evidence
 

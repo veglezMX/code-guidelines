@@ -1,7 +1,7 @@
 # Version Baseline
 
 Status: settled
-Decisions: 0013, 0014 · inherits 0007
+Decisions: 0013, 0014 · inherits 0007, 0032
 Sources: pack `00` · independent §21 · analysis `02` §10 · `research.md` "Versions" and
 §6 · npm registry queried 2026-07-29 ·
 [MSAL Browser v4→v5 migration](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/v4-migration)
@@ -129,7 +129,11 @@ Do not add `typescript-eslint@8.65.0`: its registry peer range is
 2. Use an exact candidate set and regenerate the lockfile in one change.
 3. Run unit, build, bridge-header, redirect, silent-token, cross-tab, and multi-application
    browser tests before rollout.
-4. Roll out portal first because it owns the bridge, then child0, then child1.
+4. Roll out portal first because it owns the bridge, then child0, then child1. This is
+   one coordinated three-application release with a single change window and a single
+   rollback decision, not three independent deployments (`topology` invariant 10).
+   Schedule it as a `portal-web` authentication window: while portal is mid-rollout,
+   children cannot bootstrap, renew silently, recover interaction, or log out.
 5. Keep the rollback artifact available for at least MSAL's default old-cache retention
    window (five days), unless `cache-and-storage` deliberately changes
    `cacheRetentionDays`.

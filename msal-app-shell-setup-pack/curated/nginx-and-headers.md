@@ -1,7 +1,7 @@
 # nginx and Security Headers
 
 Status: settled
-Decisions: 0026 · inherits 0002, 0004, 0007, 0013, 0017, 0024
+Decisions: 0026 · inherits 0002, 0004, 0007, 0013, 0017, 0024, 0033
 Sources: pack `11` · independent §2.1 · analysis `02` §6.5 ·
 [nginx `try_files`](https://nginx.org/en/docs/http/ngx_http_core_module.html#try_files) ·
 [nginx headers module](https://nginx.org/en/docs/http/ngx_http_headers_module.html) ·
@@ -48,6 +48,15 @@ Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 Do not add `unsafe-inline`, `unsafe-eval`, wildcard script/connect sources, runtime
 third-party scripts, or an unreviewed telemetry endpoint. When telemetry is selected,
 add its one exact origin through environment-reviewed configuration.
+
+This CSP is not hardening; it is a **primary control**. One origin, one Entra client ID
+and MSAL's `localStorage` cache mean any script that executes here can mint tokens for
+every API in the suite with a correct audience, which no backend check rejects
+(`topology` Open 1, `authorization-layers`). Together with exact dependency/lockfile
+review and the no-third-party-runtime-script rule, `script-src 'self'` is what keeps
+that code from executing. Shipping the CSP in report-only mode, or relaxing it to
+accommodate a product feature, removes a control the architecture depends on and needs
+a security-owner decision, not a configuration change.
 
 `/auth-redirect.html` has a separate minimal policy:
 
